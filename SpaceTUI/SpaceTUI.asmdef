@@ -3,7 +3,8 @@
     "rootNamespace": "",
     "references": [
         "NekoGraph.Runtime",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
