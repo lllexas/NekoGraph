@@ -1,0 +1,61 @@
+{
+  "PackID": "demo_full",
+  "RootNodeId": "root_001",
+  "Nodes": {
+    "root_001": {
+      "$type": "RootNodeData",
+      "NodeID": "root_001",
+      "Name": "Root",
+      "OutputConnections": [
+        {
+          "TargetNodeID": "mission_001"
+        }
+      ]
+    },
+    "mission_001": {
+      "$type": "MissionNode_A_Data",
+      "NodeID": "mission_001",
+      "Name": "Start Mission",
+      "OutputConnections": [
+        {
+          "TargetNodeID": "trigger_001"
+        }
+      ]
+    },
+    "trigger_001": {
+      "$type": "TriggerNodeData",
+      "NodeID": "trigger_001",
+      "Name": "Wait Barracks",
+      "Event": "BuildingConstructed",
+      "SignalOutputs": [
+        "command_001"
+      ]
+    },
+    "command_001": {
+      "$type": "CommandNodeData",
+      "NodeID": "command_001",
+      "Name": "Grant Reward",
+      "Command": {
+        "CommandName": "grant_gold"
+      },
+      "OutputConnections": [
+        {
+          "TargetNodeID": "destroy_001"
+        }
+      ]
+    },
+    "destroy_001": {
+      "$type": "DestroyNodeData",
+      "NodeID": "destroy_001",
+      "Name": "Finish"
+    },
+    "orphan_001": {
+      "$type": "CommandNodeData",
+      "NodeID": "orphan_001",
+      "Name": "Orphan Node",
+      "Command": {
+        "CommandName": "noop"
+      }
+    }
+  }
+}
