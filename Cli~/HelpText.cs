@@ -83,6 +83,81 @@ internal static class HelpText
             .\nekograph.cmd --edit --create-bridge pack1 <comparerNodeId> leaf-b:fail trigger --from-port 1
 
         ═══════════════════════════════════════════════════════════════
+        节点类型说明（--help --nodes 查看详细说明）
+        ═══════════════════════════════════════════════════════════════
+
+        【流程控制节点】— 构建剧情/任务的骨架结构
+
+        Root (根节点)
+          语义：流程的起始锚点，所有信号从这里注入
+          行为：收到信号 → 立即向输出节点传播
+          用途：每个 Pack 必须有一个 Root 节点，作为剧情入口
+
+        Spine (主干节点)
+          语义：流程的逻辑骨架，像"脊椎"一样支撑整个剧情结构
+          行为：收到信号 → 1) 激活关联的 Leaf-A 节点，2) 向下一个 Spine 传播
+          字段：ProcessID（进程 ID，用于关联 Leaf 节点）
+          用途：将长流程分割成多个"进程段"，便于管理
+
+        Leaf-A (叶子节点 A)
+          语义：进程分支的入口，被 Spine 激活
+          行为：收到信号 → 向输出节点传播（通常是 Mission-A 或 Trigger）
+          字段：ProcessID（必须与某个 Spine 共享）
+          用途：启动具体的任务线或剧情分支
+
+        Leaf-B (叶子节点 B)
+          语义：进程分支的出口，任务完成后信号返回这里
+          行为：收到信号 → 向下一个 Spine 或其他节点传播
+          字段：ProcessID（必须与某个 Spine 共享）
+          用途：将完成信号返回到主干流程
+
+        【任务节点】— 管理任务的状态流转
+
+        Mission-A (任务激活)
+          语义：任务的起点，激活任务状态
+          行为：收到信号 → IsActive=true，向输出节点传播
+          字段：MissionID（任务唯一标识），Priority（优先级）
+          用途：标记一个任务开始，通常后接 Trigger 等待条件
+
+        Mission-S (任务成功)
+          语义：任务成功终点
+          行为：收到信号 → IsCompleted=true，查找 Mission-A 标记完成
+          字段：MissionID（必须与某个 Mission-A 匹配）
+          用途：标记任务成功完成，通常后接奖励 Command 或 Leaf-B
+
+        Mission-F (任务失败)
+          语义：任务失败终点
+          行为：收到信号 → IsFailed=true，查找 Mission-A 标记失败
+          字段：MissionID（必须与某个 Mission-A 匹配）
+          用途：标记任务失败，通常后接重试逻辑或剧情分支
+
+        Mission-R (任务重置)
+          语义：任务重置点
+          行为：收到信号 → 重置进度，可选重新激活
+          字段：MissionID, ResetProgress（是否重置进度）, Reactivate（是否重新激活）
+          用途：重置任务状态，用于可重复任务或失败后重试
+
+        【逻辑节点】— 实现具体的游戏逻辑
+
+        Trigger (触发器)
+          语义：事件监听器，被动等待特定事件发生
+          行为：挂载事件监听 → 事件触发 → 向输出节点传播信号
+          字段：Event（监听的事件名，见下方事件列表）
+          用途：等待游戏事件（如"单位死亡"、"建筑完成"）
+
+        Comparer (比较器)
+          语义：条件判断器，根据条件走不同分支
+          行为：检查条件 → 满足走 Pass(端口 0)，不满足走 Fail(端口 1)
+          字段：ComparerName（比较器类型），Parameters（比较参数）
+          用途：条件分支（如"击杀数>=5"、"资源>=1000"）
+
+        Command (命令)
+          语义：执行具体的游戏操作
+          行为：调用游戏系统 → 执行命令 → 向输出节点传播
+          字段：CommandName（命令名），Parameter（单参数），Parameters（多参数）
+          用途：执行操作（如"生成单位"、"播放动画"、"发放奖励"）
+
+        ═══════════════════════════════════════════════════════════════
         可用触发事件 (trigger 节点的 Event 字段)
         ═══════════════════════════════════════════════════════════════
 
@@ -211,6 +286,7 @@ internal static class HelpText
 
           nekograph-cli --version
           nekograph-cli --help
+          nekograph-cli --help --nodes       ← 查看节点类型详细说明
           nekograph-cli --run --full <packid>
           nekograph-cli --show --node <packid> <node-ref>
           nekograph-cli --show --process <packid> <processid>

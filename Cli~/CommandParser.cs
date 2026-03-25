@@ -6,6 +6,8 @@ internal sealed class ParsedCommand
 
     public bool ShowVersion { get; init; }
 
+    public bool ShowNodeHelp { get; init; }
+
     public bool RunFull { get; init; }
 
     public bool ShowProcess { get; init; }
@@ -68,6 +70,14 @@ internal static class CommandParser
                 "--version" or "-v" or "version" => new ParsedCommand { ShowVersion = true },
                 _ => new ParsedCommand { ErrorMessage = $"Unknown argument: {args[0]}" }
             };
+        }
+
+        // --help --nodes 查看节点类型说明
+        if (args.Length == 2 &&
+            string.Equals(args[0], "--help", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--nodes", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ParsedCommand { ShowNodeHelp = true };
         }
 
         if (args.Length == 3 &&

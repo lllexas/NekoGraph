@@ -18,6 +18,12 @@ internal static class CliApp
             return 0;
         }
 
+        if (command.ShowNodeHelp)
+        {
+            Console.Out.WriteLine(NodeHelpText.Value);
+            return 0;
+        }
+
         if (command.RunFull)
         {
             return RunFullCommand.Execute(command.PackId!);
