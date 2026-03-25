@@ -23,7 +23,7 @@ public abstract class TUISelectSlot : IConsoleInputHandler, IConsoleInputLineSta
     public int SelectedIndex => _selectedIndex;
 
     protected TUISelectionConfig Config => _config;
-    protected DeveloperConsole Console => _config.console;
+    protected ConsoleManager Console => _config.console;
     protected int ItemCount => _config.items?.Count ?? 0;
     protected bool HasItems => ItemCount > 0;
     protected int ConsoleWidth => Console?.ConsoleWidth ?? 0;

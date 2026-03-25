@@ -25,12 +25,12 @@ namespace MineRTS.BigMap.UI.Panels
     ///   ConsoleDisplayBase（纯显示层）
     ///   ↑
     ///   ConsolePanelBase<T>（添加输入层）
-    ///   ├─ DeveloperConsolePanel (开发终端面板)
+    ///   ├─ ConsoleManagerPanel (开发终端面板)
     ///   └─ SocialPanelAnimator (社交终端面板)
     ///
     /// ═══════════════════════════════════════════════════════════════
     /// </summary>
-    public abstract class ConsolePanelBase<T> : ConsoleDisplayBase<T>, IPointerClickHandler where T : DeveloperConsole
+    public abstract class ConsolePanelBase<T> : ConsoleDisplayBase<T>, IPointerClickHandler where T : ConsoleManager
     {
         // =========================================================
         //  UI 组件引用（输入层）

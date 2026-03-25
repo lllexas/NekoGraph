@@ -237,10 +237,15 @@ internal static class CommandParser
             };
         }
 
-        if (args.Length == 6 &&
+        if (args.Length >= 6 &&
             string.Equals(args[0], "--edit", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(args[1], "--insert-unnamed", StringComparison.OrdinalIgnoreCase))
         {
+            if (!TryParsePortOptions(args, 6, out var fromPortIndex, out var toPortIndex, out var portError))
+            {
+                return new ParsedCommand { ErrorMessage = portError };
+            }
+
             return HasBlank(args[2], args[3], args[4], args[5])
                 ? new ParsedCommand { ErrorMessage = "--edit --insert-unnamed requires <packid> <from-named-ref> <to-named-ref> <trigger|comparer|command>." }
                 : new ParsedCommand
@@ -249,14 +254,21 @@ internal static class CommandParser
                     PackId = args[2],
                     SourceRef = args[3],
                     DestinationRef = args[4],
-                    NodeKind = args[5]
+                    NodeKind = args[5],
+                    FromPortIndex = fromPortIndex,
+                    ToPortIndex = toPortIndex
                 };
         }
 
-        if (args.Length == 7 &&
+        if (args.Length >= 7 &&
             string.Equals(args[0], "--edit", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(args[1], "--insert-unnamed-at", StringComparison.OrdinalIgnoreCase))
         {
+            if (!TryParsePortOptions(args, 7, out var fromPortIndex, out var toPortIndex, out var portError))
+            {
+                return new ParsedCommand { ErrorMessage = portError };
+            }
+
             if (HasBlank(args[2], args[3], args[4], args[5], args[6]))
             {
                 return new ParsedCommand { ErrorMessage = "--edit --insert-unnamed-at requires <packid> <from-named-ref> <to-named-ref> <depth-edge-index> <trigger|comparer|command>." };
@@ -274,7 +286,9 @@ internal static class CommandParser
                 SourceRef = args[3],
                 DestinationRef = args[4],
                 EdgeIndex = edgeIndex,
-                NodeKind = args[6]
+                NodeKind = args[6],
+                FromPortIndex = fromPortIndex,
+                ToPortIndex = toPortIndex
             };
         }
 

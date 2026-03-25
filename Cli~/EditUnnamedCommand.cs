@@ -49,7 +49,8 @@ internal static class EditUnnamedCommand
             var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
             if (bridgePath is null)
             {
-                Console.Error.WriteLine($"No unique unnamed bridge path exists from '{fromNodeRef}' to '{toNodeRef}'.");
+                var paths = BridgeQuery.FindBridgePathsForDiagnosis(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
+                Console.Error.WriteLine(BridgeQuery.FormatBridgeDiagnosticError(fromNodeRef, toNodeRef, paths));
                 return 1;
             }
 
@@ -217,7 +218,7 @@ internal static class EditUnnamedCommand
         }
     }
 
-    public static int ExecuteInsertAt(string packId, string fromNamedRef, string? toNamedRef, int depthEdgeIndex, string nodeKind)
+    public static int ExecuteInsertAt(string packId, string fromNamedRef, string? toNamedRef, int depthEdgeIndex, string nodeKind, int? fromPortIndex = null, int? toPortIndex = null)
     {
         try
         {
@@ -248,10 +249,30 @@ internal static class EditUnnamedCommand
                 return 1;
             }
 
-            var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId);
+            var fromNodeObject = context.Nodes[fromNode.NodeId]?.AsObject();
+            var toNodeObject = context.Nodes[toNode.NodeId]?.AsObject();
+            if (fromNodeObject is null || toNodeObject is null)
+            {
+                Console.Error.WriteLine("Node JSON was not found for bridge insertion.");
+                return 1;
+            }
+
+            if (!BridgeQuery.TryResolveBridgePorts(
+                    fromNodeObject, toNodeObject,
+                    fromNamedRef, toNamedRef,
+                    fromPortIndex, toPortIndex,
+                    out var effectiveFromPort, out var effectiveToPort,
+                    out errorMessage))
+            {
+                Console.Error.WriteLine(errorMessage);
+                return 1;
+            }
+
+            var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId, effectiveFromPort, effectiveToPort);
             if (bridgePath is null)
             {
-                Console.Error.WriteLine($"No unique unnamed bridge path exists from '{fromNamedRef}' to '{toNamedRef}'.");
+                var paths = BridgeQuery.FindBridgePathsForDiagnosis(context, fromNode.NodeId, toNode.NodeId, effectiveFromPort, effectiveToPort);
+                Console.Error.WriteLine(BridgeQuery.FormatBridgeDiagnosticError(fromNamedRef, toNamedRef, paths));
                 return 1;
             }
 
@@ -339,7 +360,8 @@ internal static class EditUnnamedCommand
             var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId);
             if (bridgePath is null)
             {
-                Console.Error.WriteLine($"No unique unnamed bridge path exists from '{fromNamedRef}' to '{toNamedRef}'.");
+                var paths = BridgeQuery.FindBridgePathsForDiagnosis(context, fromNode.NodeId, toNode.NodeId, null, null);
+                Console.Error.WriteLine(BridgeQuery.FormatBridgeDiagnosticError(fromNamedRef, toNamedRef, paths));
                 return 1;
             }
 
@@ -422,7 +444,7 @@ internal static class EditUnnamedCommand
         }
     }
 
-    public static int ExecuteInsert(string packId, string fromNamedRef, string toNamedRef, string nodeKind)
+    public static int ExecuteInsert(string packId, string fromNamedRef, string toNamedRef, string nodeKind, int? fromPortIndex = null, int? toPortIndex = null)
     {
         try
         {
@@ -448,16 +470,33 @@ internal static class EditUnnamedCommand
             }
 
             var fromNodeObject = context.Nodes[fromNode.NodeId]?.AsObject();
-            if (fromNodeObject is null)
+            var toNodeObject = context.Nodes[toNode.NodeId]?.AsObject();
+            if (fromNodeObject is null || toNodeObject is null)
             {
                 Console.Error.WriteLine($"Source node JSON was not found: {fromNode.NodeId}");
                 return 1;
             }
 
-            var outgoing = BridgeQuery.ReadOutgoingTargets(fromNodeObject);
-            if (!outgoing.Contains(toNode.NodeId, StringComparer.Ordinal))
+            if (!BridgeQuery.TryResolveBridgePorts(
+                    fromNodeObject, toNodeObject,
+                    fromNamedRef, toNamedRef,
+                    fromPortIndex, toPortIndex,
+                    out var effectiveFromPort, out var effectiveToPort,
+                    out errorMessage))
             {
-                Console.Error.WriteLine($"No direct edge exists from '{fromNamedRef}' to '{toNamedRef}'.");
+                Console.Error.WriteLine(errorMessage);
+                return 1;
+            }
+
+            var directEdge = BridgeQuery.ReadOutgoingEdges(fromNodeObject)
+                .FirstOrDefault(edge =>
+                    string.Equals(edge.ToNodeId, toNode.NodeId, StringComparison.Ordinal) &&
+                    edge.FromPortIndex == effectiveFromPort &&
+                    edge.ToPortIndex == effectiveToPort);
+
+            if (directEdge is null)
+            {
+                Console.Error.WriteLine($"No direct edge exists from '{fromNamedRef}' (port {effectiveFromPort}) to '{toNamedRef}' (port {effectiveToPort}).");
                 return 1;
             }
 
@@ -467,17 +506,14 @@ internal static class EditUnnamedCommand
                 newNodeId,
                 toNode.NodeId,
                 GetMidpoint(fromNodeObject, context.Nodes[toNode.NodeId]?.AsObject()),
-                0);
-
-            var directEdge = BridgeQuery.ReadOutgoingEdges(fromNodeObject)
-                .FirstOrDefault(edge => string.Equals(edge.ToNodeId, toNode.NodeId, StringComparison.Ordinal));
+                effectiveToPort);
 
             ReplaceOutgoingTarget(
                 fromNodeObject,
                 toNode.NodeId,
                 newNodeId,
-                directEdge?.FromPortIndex ?? 0,
-                directEdge?.ToPortIndex,
+                effectiveFromPort,
+                directEdge.ToPortIndex,
                 0);
             context.Nodes[newNodeId] = newNodeObject;
             TouchModifiedAt(context.Root);

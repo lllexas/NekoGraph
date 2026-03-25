@@ -9,7 +9,7 @@ using static CommandRegistry;
 
 /// <summary>
 /// ═══════════════════════════════════════════════════════════════
-/// DeveloperConsole - 开发者控制台逻辑层
+/// ConsoleManager - 控制台管理器
 /// ═══════════════════════════════════════════════════════════════
 ///
 /// 设计理念：
@@ -19,13 +19,13 @@ using static CommandRegistry;
 /// 4. 支持管道和分号 - 命令组合功能
 ///
 /// 继承关系：
-///   DeveloperConsole : SingletonMono<DeveloperConsole>
+///   ConsoleManager : TUIManager
 ///   ↑
-///   └─ SocialCLI : DeveloperConsole (社交终端特化)
+///   └─ SocialCLI : ConsoleManager (社交终端特化)
 ///
 /// ═══════════════════════════════════════════════════════════════
 /// </summary>
-public class DeveloperConsole : TUIManager, IConsoleController
+public class ConsoleManager : TUIManager, IConsoleController
 {
     // =========================================================
     //  输出事件数据结构
@@ -415,7 +415,7 @@ public class DeveloperConsole : TUIManager, IConsoleController
     protected void FireOutputEvents(string message, Color color)
     {
         // 只发送一个事件，避免重复处理喵~
-        PostSystem.Instance.Send("DeveloperConsole.Output", new ConsoleOutputEvent { message = message, color = color });
+        PostSystem.Instance.Send("ConsoleManager.Output", new ConsoleOutputEvent { message = message, color = color });
     }
 
     /// <summary>

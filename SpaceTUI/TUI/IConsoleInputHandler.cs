@@ -26,7 +26,7 @@ public struct KeyInfo
 
 /// <summary>
 /// 控制台输入处理器接口。
-/// 挂载后，DeveloperConsole 会优先将输入事件导流给处理器。
+/// 挂载后，ConsoleManager 会优先将输入事件导流给处理器。
 /// 返回 true 表示该输入已被消费，控制台默认行为不再继续。
 /// </summary>
 public interface IConsoleInputHandler

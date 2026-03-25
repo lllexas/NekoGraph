@@ -55,7 +55,8 @@ internal static class ShowLocalCommand
             var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
             if (bridgePath is null)
             {
-                Console.Error.WriteLine($"No unique unnamed bridge path exists from '{fromNodeRef}' to '{toNodeRef}'.");
+                var paths = BridgeQuery.FindBridgePathsForDiagnosis(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
+                Console.Error.WriteLine(BridgeQuery.FormatBridgeDiagnosticError(fromNodeRef, toNodeRef, paths));
                 return 1;
             }
 

@@ -116,7 +116,8 @@ internal static class UnnamedFieldCommand
         var bridgePath = BridgeQuery.FindUniqueBridgePath(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
         if (bridgePath is null)
         {
-            errorMessage = $"No unique unnamed bridge path exists from '{fromNamedRef}' to '{toNamedRef}'.";
+            var paths = BridgeQuery.FindBridgePathsForDiagnosis(context, fromNode.NodeId, toNode.NodeId, effectiveFromPortIndex, effectiveToPortIndex);
+            errorMessage = BridgeQuery.FormatBridgeDiagnosticError(fromNamedRef, toNamedRef, paths);
             return null;
         }
 

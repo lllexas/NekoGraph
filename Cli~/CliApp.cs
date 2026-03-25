@@ -83,8 +83,8 @@ internal static class CliApp
         if (command.EditInsertUnnamed)
         {
             return command.EdgeIndex.HasValue
-                ? EditUnnamedCommand.ExecuteInsertAt(command.PackId!, command.SourceRef!, command.DestinationRef!, command.EdgeIndex.Value, command.NodeKind!)
-                : EditUnnamedCommand.ExecuteInsert(command.PackId!, command.SourceRef!, command.DestinationRef!, command.NodeKind!);
+                ? EditUnnamedCommand.ExecuteInsertAt(command.PackId!, command.SourceRef!, command.DestinationRef!, command.EdgeIndex.Value, command.NodeKind!, command.FromPortIndex, command.ToPortIndex)
+                : EditUnnamedCommand.ExecuteInsert(command.PackId!, command.SourceRef!, command.DestinationRef!, command.NodeKind!, command.FromPortIndex, command.ToPortIndex);
         }
 
         if (command.EditRemoveUnnamed)

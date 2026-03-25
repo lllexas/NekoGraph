@@ -77,6 +77,35 @@ internal static class BridgeQuery
         return matches.Count == 1 ? matches[0] : null;
     }
 
+    /// <summary>
+    /// Returns up to <paramref name="cap"/> bridge paths for diagnostic purposes.
+    /// Use when FindUniqueBridgePath returns null to produce a meaningful error message.
+    /// </summary>
+    public static List<List<string>> FindBridgePathsForDiagnosis(EditContext context, string fromNodeId, string toNodeId, int? fromPortIndex, int? toPortIndex, int cap = 5)
+    {
+        var matches = new List<List<string>>();
+        ExploreBridgePathsAll(context, fromNodeId, toNodeId, fromPortIndex, toPortIndex, [fromNodeId], matches, cap);
+        return matches;
+    }
+
+    public static string FormatBridgeDiagnosticError(string fromRef, string toRef, List<List<string>> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return $"No bridge path found from '{fromRef}' to '{toRef}'. " +
+                   "Check that the nodes exist and are connected, or use --run --full to inspect the pack structure.";
+        }
+
+        var lines = new System.Text.StringBuilder();
+        lines.AppendLine($"Multiple bridge paths found from '{fromRef}' to '{toRef}' ({paths.Count} path(s) — showing up to 5).");
+        lines.AppendLine("Use --from-port or --to-port to select a specific path, or query --bridge first.");
+        for (var i = 0; i < paths.Count; i++)
+        {
+            lines.AppendLine($"  path {i}: {string.Join(" -> ", paths[i])}");
+        }
+        return lines.ToString().TrimEnd();
+    }
+
     public static List<string> ReadOutgoingTargets(JsonObject? nodeObject)
     {
         return ReadOutgoingEdges(nodeObject)
@@ -151,6 +180,58 @@ internal static class BridgeQuery
         }
 
         return [];
+    }
+
+    private static void ExploreBridgePathsAll(EditContext context, string fromNodeId, string toNodeId, int? fromPortIndex, int? toPortIndex, List<string> path, List<List<string>> matches, int cap)
+    {
+        if (matches.Count >= cap)
+        {
+            return;
+        }
+
+        if (path[^1] == toNodeId)
+        {
+            matches.Add([.. path]);
+            return;
+        }
+
+        var currentObject = context.Nodes[path[^1]]?.AsObject();
+        foreach (var edge in ReadOutgoingEdges(currentObject))
+        {
+            if (path.Count == 1 && fromPortIndex.HasValue && edge.FromPortIndex != fromPortIndex.Value)
+            {
+                continue;
+            }
+
+            if (string.Equals(edge.ToNodeId, toNodeId, StringComparison.Ordinal) &&
+                toPortIndex.HasValue &&
+                edge.ToPortIndex != toPortIndex.Value)
+            {
+                continue;
+            }
+
+            var nextNodeId = edge.ToNodeId;
+            if (path.Contains(nextNodeId, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            if (!context.Pack.Nodes.TryGetValue(nextNodeId, out var nextNode))
+            {
+                continue;
+            }
+
+            var nextNamedRef = NamedNodeRef.TryBuild(nextNode);
+            if (!string.Equals(nextNodeId, toNodeId, StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(nextNamedRef))
+            {
+                continue;
+            }
+
+            path.Add(nextNodeId);
+            ExploreBridgePathsAll(context, fromNodeId, toNodeId, null, toPortIndex, path, matches, cap);
+            path.RemoveAt(path.Count - 1);
+        }
     }
 
     private static void ExploreBridgePaths(EditContext context, string currentNodeId, string targetNodeId, int? fromPortIndex, int? toPortIndex, List<string> path, List<List<string>> matches)

@@ -156,7 +156,7 @@ public struct TUISelectionConfig
     public int initialSelectedKey;
 
     /// <summary>所属控制台引用。</summary>
-    public DeveloperConsole console;
+    public ConsoleManager console;
 
     /// <summary>选择项数据源。</summary>
     public IReadOnlyList<TUISelectionItem> items;

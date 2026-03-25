@@ -220,8 +220,8 @@ internal static class HelpText
           nekograph-cli --edit --create-bridge <packid> <from-node-ref> <to-node-ref> <node-kind-list|none> [--from-port N] [--to-port N]
           nekograph-cli --edit --destroy-bridge <packid> <from-node-ref> <to-node-ref> [--from-port N] [--to-port N]
           nekograph-cli --edit --field <packid> <from-node-ref> <to-node-ref> <unnamed-node-index> <field-name> <value> [--from-port N] [--to-port N]
-          nekograph-cli --edit --insert-unnamed <packid> <from-node-ref> <to-node-ref> <trigger|comparer|command>
-          nekograph-cli --edit --insert-unnamed-at <packid> <from-node-ref> <to-node-ref> <depth-edge-index> <trigger|comparer|command>
+          nekograph-cli --edit --insert-unnamed <packid> <from-node-ref> <to-node-ref> <trigger|comparer|command> [--from-port N] [--to-port N]
+          nekograph-cli --edit --insert-unnamed-at <packid> <from-node-ref> <to-node-ref> <depth-edge-index> <trigger|comparer|command> [--from-port N] [--to-port N]
           nekograph-cli --edit --remove-unnamed <packid> <from-node-ref> <to-node-ref>
           nekograph-cli --edit --remove-unnamed-at <packid> <from-node-ref> <to-node-ref> <depth-edge-index>
         """;

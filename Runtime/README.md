@@ -253,7 +253,7 @@ GraphRunner.Instance.EnableDebugLog = true;
 
 1. **不要删除旧文件**：旧版 `MissionManager.cs`和`TriggerSystem.cs` 暂时保留，用于回滚
 
-2. **CommandRegistry 依赖**：确保 `DeveloperConsole` 已正确注册所有命令
+2. **CommandRegistry 依赖**：确保 `ConsoleManager` 已正确注册所有命令
 
 3. **信号深度限制**：`GraphRunner.MaxSignalDepth = 100`（防止无限循环）
 
