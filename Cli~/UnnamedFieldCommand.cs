@@ -155,14 +155,18 @@ internal static class UnnamedFieldCommand
             ? BuildNodeLabel(nextNode)
             : nextNodeId;
 
+        // Calculate bridge type: direct (0 unnamed nodes) or bridged (≥1 unnamed nodes)
+        var unnamedNodeCount = unnamedNodeIds.Count;
+        var bridgeType = unnamedNodeCount == 0 ? "direct" : "bridged";
+
         return new UnnamedNodeResolution(
             context,
             node,
             nodeObject,
             GetNodeKind(node),
             BuildNodeLabel(node),
-            bridgePath.Count - 1,
-            unnamedNodeIds.Count,
+            unnamedNodeCount,
+            bridgeType,
             new NodeLink(previousNodeId, previousLabel, context.Pack.Nodes.TryGetValue(previousNodeId, out var prev) ? NamedNodeRef.TryBuild(prev) : null),
             new NodeLink(nextNodeId, nextLabel, context.Pack.Nodes.TryGetValue(nextNodeId, out var nxt) ? NamedNodeRef.TryBuild(nxt) : null));
     }
@@ -191,8 +195,8 @@ internal static class UnnamedFieldCommand
             fields,
             GetEditableFieldNames(resolved.Node),
             new BridgeFieldContext(
-                resolved.DepthEdgeCount,
                 resolved.UnnamedNodeCount,
+                resolved.BridgeType,
                 resolved.PreviousNode,
                 resolved.NextNode));
     }
@@ -419,8 +423,8 @@ internal sealed record UnnamedFieldEditReport(
     List<string> EditableFields);
 
 internal sealed record BridgeFieldContext(
-    int DepthEdgeCount,
     int UnnamedNodeCount,
+    string BridgeType,
     NodeLink PreviousNode,
     NodeLink NextNode);
 
@@ -435,7 +439,7 @@ internal sealed record UnnamedNodeResolution(
     JsonObject NodeObject,
     string NodeKind,
     string Label,
-    int DepthEdgeCount,
     int UnnamedNodeCount,
+    string BridgeType,
     NodeLink PreviousNode,
     NodeLink NextNode);

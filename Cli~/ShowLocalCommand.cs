@@ -88,6 +88,15 @@ internal static class ShowLocalCommand
                     BuildSegmentKind(pack, fromId, nextId)));
             }
 
+            // Calculate unnamed node count and bridge type
+            // bridgePath includes from-node and to-node, so unnamed nodes = total - 2
+            var unnamedNodeCount = bridgePath.Count - 2;
+            var bridgeType = unnamedNodeCount switch
+            {
+                0 => "direct",    // 直连：两个具名节点直接相连，中间没有匿名节点
+                _ => "bridged"    // 桥接：中间有≥1 个匿名节点
+            };
+
             var payload = new BridgeQueryReport(
                 "query-bridge",
                 packId,
@@ -95,7 +104,8 @@ internal static class ShowLocalCommand
                 toNodeRef,
                 effectiveFromPortIndex,
                 effectiveToPortIndex,
-                bridgePath.Count - 1,
+                unnamedNodeCount,
+                bridgeType,
                 nodes,
                 segments);
 
@@ -529,7 +539,8 @@ internal sealed record BridgeQueryReport(
     string To,
     int? FromPortIndex,
     int? ToPortIndex,
-    int DepthEdgeCount,
+    int UnnamedNodeCount,
+    string BridgeType,
     List<NodeLink> Nodes,
     List<BridgeSegmentReport> Segments);
 
