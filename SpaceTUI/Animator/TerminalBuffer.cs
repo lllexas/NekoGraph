@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace MineRTS.BigMap.UI.Panels
+namespace SpaceTUI
 {
     /// <summary>
     /// ═══════════════════════════════════════════════════════════════

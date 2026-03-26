@@ -4,15 +4,17 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-/// <summary>
-/// ═══════════════════════════════════════════════════════════════
-/// TUITool - TUI 工具类（布局 + 格式化）
-/// ═══════════════════════════════════════════════════════════════
-/// 像 CSS 布局一样处理 TUI 组件，返回 RichText 字符串喵~
-/// ═══════════════════════════════════════════════════════════════
-/// </summary>
-public static class TUITool
+namespace SpaceTUI
 {
+    /// <summary>
+    /// ═══════════════════════════════════════════════════════════════
+    /// TUITool - TUI 工具类（布局 + 格式化）
+    /// ═══════════════════════════════════════════════════════════════
+    /// 像 CSS 布局一样处理 TUI 组件，返回 RichText 字符串喵~
+    /// ═══════════════════════════════════════════════════════════════
+    /// </summary>
+    public static class TUITool
+    {
     // ─────────────────────────────────────────────────────────────
     //  Box Drawing 字符定义
     // ─────────────────────────────────────────────────────────────
@@ -294,5 +296,6 @@ public static class TUITool
     {
         var b = border ?? BorderStyle.Classic;
         return b.GenerateDivider(totalWidth, text);
+    }
     }
 }

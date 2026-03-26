@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class TUISelectSlot : IConsoleInputHandler, IConsoleInputLineState
+namespace SpaceTUI
 {
+    public abstract class TUISelectSlot : IConsoleInputHandler, IConsoleInputLineState
+    {
     private TUISelectionConfig _config;
     private readonly int _startLine;
     private int _renderedHeight;
@@ -338,4 +340,5 @@ public abstract class TUISelectSlot : IConsoleInputHandler, IConsoleInputLineSta
 
     protected abstract bool TryNavigate(ConsoleNavKey key);
     protected abstract List<string> BuildLines();
+    }
 }

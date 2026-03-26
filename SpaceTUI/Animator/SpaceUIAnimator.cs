@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 using DG.Tweening;
 using System;
 
-namespace MineRTS.BigMap.UI
+namespace SpaceTUI
 {
     /// <summary>
     /// 空间 UI 动画器（行为驱动基类）

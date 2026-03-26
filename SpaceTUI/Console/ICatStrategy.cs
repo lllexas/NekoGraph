@@ -1,6 +1,6 @@
 using System;
 
-namespace CatStrategies
+namespace SpaceTUI
 {
     public interface ICatStrategy
     {

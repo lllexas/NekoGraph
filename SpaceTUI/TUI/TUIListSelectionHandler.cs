@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class TUIListSelectionHandler : TUISelectSlot
+namespace SpaceTUI
 {
+    public sealed class TUIListSelectionHandler : TUISelectSlot
+    {
     public TUIListSelectionHandler(TUISelectionConfig config)
         : base(config)
     {
@@ -92,5 +94,6 @@ public sealed class TUIListSelectionHandler : TUISelectSlot
         }
 
         return richText;
+    }
     }
 }

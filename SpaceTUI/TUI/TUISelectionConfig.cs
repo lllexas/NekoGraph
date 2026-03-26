@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 选择项在某个状态下的视觉样式。
-/// </summary>
-public struct TUISelectionStateStyle
+namespace SpaceTUI
 {
+    /// <summary>
+    /// 选择项在某个状态下的视觉样式。
+    /// </summary>
+    public struct TUISelectionStateStyle
+    {
     /// <summary>行首前缀文本，例如 "  " 或 "> "。</summary>
     public string prefixText;
 
@@ -178,4 +180,5 @@ public struct TUISelectionConfig
         viewStyle = TUISelectionViewStyle.Default,
         interaction = TUISelectionInteractionConfig.Default
     };
+    }
 }

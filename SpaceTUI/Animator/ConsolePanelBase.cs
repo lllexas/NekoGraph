@@ -6,7 +6,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.Linq;
 
-namespace MineRTS.BigMap.UI.Panels
+namespace SpaceTUI
 {
     /// <summary>
     /// ═══════════════════════════════════════════════════════════════

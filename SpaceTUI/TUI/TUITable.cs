@@ -4,15 +4,17 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-/// <summary>
-/// ═══════════════════════════════════════════════════════════════
-/// TUITable - TUI 表格系统
-/// ═══════════════════════════════════════════════════════════════
-/// 像 HTML 表格一样声明式定义，支持边框、对齐、自动列宽喵~
-/// ═══════════════════════════════════════════════════════════════
-/// </summary>
+namespace SpaceTUI
+{
+    /// <summary>
+    /// ═══════════════════════════════════════════════════════════════
+    /// TUITable - TUI 表格系统
+    /// ═══════════════════════════════════════════════════════════════
+    /// 像 HTML 表格一样声明式定义，支持边框、对齐、自动列宽喵~
+    /// ═══════════════════════════════════════════════════════════════
+    /// </summary>
 
-/// <summary>
+    /// <summary>
 /// 表格列定义
 /// </summary>
 public class TUITableColumn
@@ -403,5 +405,6 @@ public static class TUITableExtensions
     public static TUITableBuilder CreateTable()
     {
         return new TUITableBuilder();
+    }
     }
 }

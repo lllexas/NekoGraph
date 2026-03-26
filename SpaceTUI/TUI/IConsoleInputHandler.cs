@@ -1,10 +1,12 @@
 using UnityEngine;
 
-/// <summary>
-/// 控制台导航键类型。
-/// </summary>
-public enum ConsoleNavKey
+namespace SpaceTUI
 {
+    /// <summary>
+    /// 控制台导航键类型。
+    /// </summary>
+    public enum ConsoleNavKey
+    {
     Up,
     Down,
     Left,
@@ -75,4 +77,5 @@ public interface IConsoleInputLineState
     /// 返回 null 或空字符串时，沿用控制台自己的默认提示。
     /// </summary>
     string GetInputPrompt(string fallbackPrompt);
+    }
 }

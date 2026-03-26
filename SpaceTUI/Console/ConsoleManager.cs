@@ -3,30 +3,31 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NekoGraph;
-using CatStrategies;
 using UnityEngine;
 using static CommandRegistry;
 
-/// <summary>
-/// ═══════════════════════════════════════════════════════════════
-/// ConsoleManager - 控制台管理器
-/// ═══════════════════════════════════════════════════════════════
-///
-/// 设计理念：
-/// 1. UI 与逻辑分离 - 不持有任何 UI 引用
-/// 2. 事件驱动输出 - 通过 PostSystem 发送输出事件
-/// 3. 命令注册管理 - 统一从 CommandRegistry 自动注册
-/// 4. 支持管道和分号 - 命令组合功能
-///
-/// 继承关系：
-///   ConsoleManager : TUIManager
-///   ↑
-///   └─ SocialCLI : ConsoleManager (社交终端特化)
-///
-/// ═══════════════════════════════════════════════════════════════
-/// </summary>
-public class ConsoleManager : TUIManager, IConsoleController
+namespace SpaceTUI
 {
+    /// <summary>
+    /// ═══════════════════════════════════════════════════════════════
+    /// ConsoleManager - 控制台管理器
+    /// ═══════════════════════════════════════════════════════════════
+    ///
+    /// 设计理念：
+    /// 1. UI 与逻辑分离 - 不持有任何 UI 引用
+    /// 2. 事件驱动输出 - 通过 PostSystem 发送输出事件
+    /// 3. 命令注册管理 - 统一从 CommandRegistry 自动注册
+    /// 4. 支持管道和分号 - 命令组合功能
+    ///
+    /// 继承关系：
+    ///   ConsoleManager : TUIManager
+    ///   ↑
+    ///   └─ SocialCLI : ConsoleManager (社交终端特化)
+    ///
+    /// ═══════════════════════════════════════════════════════════════
+    /// </summary>
+    public class ConsoleManager : TUIManager, IConsoleController
+    {
     // =========================================================
     //  输出事件数据结构
     // =========================================================
@@ -823,6 +824,7 @@ public class ConsoleManager : TUIManager, IConsoleController
                     Log(output.Message, output.Result == CommandResult.Success ? UnityEngine.Color.green : UnityEngine.Color.red);
             });
         }
+    }
     }
 }
 

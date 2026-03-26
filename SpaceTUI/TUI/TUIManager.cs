@@ -1,15 +1,17 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// TUI 管理层基类 —— 所有可被 ConsoleDisplayBase 驱动的逻辑层均继承此类。
-/// 提供三个 ConsoleDisplayBase 必需的最小接口：
-///   · OnClearRequested  清屏请求事件
-///   · ConsoleWidth      终端列宽（由面板层在 Start 后注入）
-///   · ConsoleHeight     终端可见行高（由面板层在 Start 后注入）
-/// </summary>
-public abstract class TUIManager : MonoBehaviour
+namespace SpaceTUI
 {
+    /// <summary>
+    /// TUI 管理层基类 —— 所有可被 ConsoleDisplayBase 驱动的逻辑层均继承此类。
+    /// 提供三个 ConsoleDisplayBase 必需的最小接口：
+    ///   · OnClearRequested  清屏请求事件
+    ///   · ConsoleWidth      终端列宽（由面板层在 Start 后注入）
+    ///   · ConsoleHeight     终端可见行高（由面板层在 Start 后注入）
+    /// </summary>
+    public abstract class TUIManager : MonoBehaviour
+    {
     /// <summary>请求清空显示缓冲区</summary>
     public event Action OnClearRequested;
 
@@ -49,4 +51,5 @@ public abstract class TUIManager : MonoBehaviour
 
     /// <summary>子类调用此方法触发清屏（事件只能由声明类内部 invoke）</summary>
     protected void InvokeClearRequested() => OnClearRequested?.Invoke();
+    }
 }

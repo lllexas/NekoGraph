@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace MineRTS.BigMap.UI.Panels
+namespace SpaceTUI
 {
     /// <summary>
     /// ═══════════════════════════════════════════════════════════════
