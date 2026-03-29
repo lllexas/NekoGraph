@@ -48,6 +48,53 @@ analyser.GetChildren(packID, "/path/", subjectLevel);
 analyser.Delete(packID, "/path/file.txt", subjectLevel);
 ```
 
+## VFS Runtime Blueprint (ExeRegistry)
+
+VFS file nodes can execute external logic based on their suffix. This allows external projects to "plant" custom runtime behavior into graphs without modifying NekoGraph core.
+
+### How it works
+
+1. `VFSNodeStrategy` handles `VFSNodeData` — when the node is a file with a registered suffix, it dispatches to `ExeRegistry`
+2. `ExeRegistry` scans all assemblies at startup for `[EXEHandler]`-annotated static methods and builds the suffix → handler map
+3. Handlers are defined in external projects; NekoGraph has no knowledge of them
+
+### Registering a handler (external project)
+
+```csharp
+[EXEHandler(".mysuffix", typeof(MyData))]
+public static void Handle(
+    string dataJson,
+    SignalContext context,
+    BasePackData pack,
+    GraphRunner runner,
+    string packInstanceID)
+{
+    var data = JsonConvert.DeserializeObject<MyData>(dataJson);
+    // ... do work ...
+    context.Args = result; // pass to downstream nodes
+}
+```
+
+Handler method signature must match exactly:
+`(string, SignalContext, BasePackData, GraphRunner, string) → void`
+
+### DataType registration
+
+The optional second argument to `[EXEHandler]` registers a data type for editor tooling:
+- VFSNode editor shows field names as a hint
+- "Open in External Editor" button generates a JSON template from default field values
+
+### ExeRegistry API
+
+```csharp
+ExeRegistry.TryGetHandler(".prefab", out var handler);  // query
+ExeRegistry.GetDataType(".prefab");                      // editor hint
+ExeRegistry.Register(".custom", myDelegate, typeof(T)); // manual register
+ExeRegistry.GetAllSuffixes();                            // list all
+```
+
+`ExeRegistry` lazy-initializes via `EnsureInitialized()` — safe to call from Editor and CLI tools (no `[RuntimeInitializeOnLoadMethod]` dependency).
+
 ## Adding a New Node Type
 
 1. Create `MyNodeData : BaseNodeData` in `Runtime/`

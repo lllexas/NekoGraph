@@ -97,6 +97,7 @@ public static class NodeStrategyFactory
         Register<ChoiceTextNodeData>(new ChoiceTextNodeStrategy());
         Register<SocialMsgEndNodeData>(new SocialMsgEndNodeStrategy());
         Register<DestroyNodeData>(new DestroyNodeStrategy());
+        Register<VFSNodeData>(new VFSNodeStrategy());
     }
 
     public static void Register<T>(NodeStrategy strategy) where T : BaseNodeData
