@@ -1,4 +1,4 @@
-namespace NekoGraph.Cli;
+﻿namespace NekoGraph.Cli;
 
 internal static class VersionInfo
 {

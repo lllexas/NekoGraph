@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 /// <summary>
 /// 事件协议协议 - 定义 Payload 的标准形状喵~

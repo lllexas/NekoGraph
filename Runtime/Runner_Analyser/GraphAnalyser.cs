@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using NekoGraph;
@@ -25,7 +25,6 @@ using NekoGraph;
 /// </summary>
 public class GraphAnalyser
 {
-    public static GraphAnalyser Instance => GraphHub.Instance?.DefaultAnalyser;
     // =========================================================
     //  Pack 注册表喵~
     // =========================================================

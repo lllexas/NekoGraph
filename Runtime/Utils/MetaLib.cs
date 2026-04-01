@@ -1,51 +1,69 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
+using System.IO;
 using Newtonsoft.Json;
+using UnityEngine;
 
 /// <summary>
-/// ═══════════════════════════════════════════════════════════════
-/// MetaLib - NekoGraph 智能仓库喵~
-/// ═══════════════════════════════════════════════════════════════
-///
-/// 职责：
-/// 1. 维护 PackID -> MetaEntry 的全局注册表
-/// 2. 【核心】作为资产供应者，根据 PackID 提供加载好的 PackData 对象
-/// 3. 抽象不同存储位置（Resources, StreamingAssets等）的加载细节
-///
+/// Global object registry keyed by unique IDs.
+/// Supports loading C# objects from Resources or StreamingAssets.
 /// </summary>
 public static class MetaLib
 {
-    public enum StorageType { Resources, StreamingAssets }
+    public enum StorageType
+    {
+        Resources,
+        StreamingAssets,
+    }
+
+    public enum EntryKind
+    {
+        Unknown = 0,
+        Pack = 1,
+        ResourceObject = 2,
+        Text = 3,
+    }
 
     private static Dictionary<string, MetaEntry> _metadata;
-    private static bool _isInitialized = false;
+    private static bool _isInitialized;
     private const string METALIB_PATH = "NekoGraph/MetaLib";
 
-    /// <summary>
-    /// 全局 JSON 序列化设置喵~
-    /// TypeNameHandling.Objects 强制保存类型信息，反序列化时自动识别类型喵！
-    /// </summary>
     public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
     {
         TypeNameHandling = TypeNameHandling.Objects,
         NullValueHandling = NullValueHandling.Ignore,
         Formatting = Formatting.Indented,
-        SerializationBinder = NekoGraphSerializationBinder.Instance
+        SerializationBinder = NekoGraphSerializationBinder.Instance,
     };
 
     [Serializable]
     public class MetaEntry
     {
+        public string ID;
+
+        // Legacy field kept for backwards compatibility with existing MetaLib.json and old callers.
         public string PackID;
+
+        public EntryKind Kind = EntryKind.Unknown;
         public StorageType Storage;
-        public string ResourcePath; // 根据 StorageType，这里可能是 Resources 路径或 StreamingAssets 的相对路径
+        public string ResourcePath;
+        public string ObjectType;
         public string GraphType;
         public string DisplayName;
         public string Author;
         public string Version = "1.0.0";
         public string Description;
         public Dictionary<string, string> CustomFields = new Dictionary<string, string>();
+
+        public string EffectiveID
+        {
+            get => !string.IsNullOrEmpty(ID) ? ID : PackID;
+            set
+            {
+                ID = value;
+                PackID = value;
+            }
+        }
     }
 
     [RuntimeInitializeOnLoadMethod]
@@ -61,137 +79,158 @@ public static class MetaLib
         var jsonAsset = Resources.Load<TextAsset>(METALIB_PATH);
         if (jsonAsset == null)
         {
-            _metadata = new Dictionary<string, MetaEntry>();
+            _metadata = new Dictionary<string, MetaEntry>(StringComparer.Ordinal);
             return;
         }
+
         try
         {
-            _metadata = JsonConvert.DeserializeObject<Dictionary<string, MetaEntry>>(jsonAsset.text) ?? new Dictionary<string, MetaEntry>();
+            _metadata = JsonConvert.DeserializeObject<Dictionary<string, MetaEntry>>(jsonAsset.text)
+                        ?? new Dictionary<string, MetaEntry>(StringComparer.Ordinal);
+
+            NormalizeEntries();
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MetaLib] 反序列化失败：{e.Message}");
-            _metadata = new Dictionary<string, MetaEntry>();
+            Debug.LogError($"[MetaLib] Failed to deserialize metadata: {e.Message}");
+            _metadata = new Dictionary<string, MetaEntry>(StringComparer.Ordinal);
         }
     }
-    
+
+    private static void NormalizeEntries()
+    {
+        if (_metadata == null)
+        {
+            _metadata = new Dictionary<string, MetaEntry>(StringComparer.Ordinal);
+            return;
+        }
+
+        var normalized = new Dictionary<string, MetaEntry>(StringComparer.Ordinal);
+        foreach (var kvp in _metadata)
+        {
+            var entry = kvp.Value ?? new MetaEntry();
+            var id = !string.IsNullOrEmpty(entry.EffectiveID) ? entry.EffectiveID : kvp.Key;
+            entry.EffectiveID = id;
+
+            if (entry.Kind == EntryKind.Unknown)
+            {
+                entry.Kind = InferEntryKind(entry);
+            }
+
+            normalized[id] = entry;
+        }
+
+        _metadata = normalized;
+    }
+
+    private static EntryKind InferEntryKind(MetaEntry entry)
+    {
+        if (!string.IsNullOrEmpty(entry.GraphType))
+        {
+            return EntryKind.Pack;
+        }
+
+        if (!string.IsNullOrEmpty(entry.ObjectType))
+        {
+            return EntryKind.ResourceObject;
+        }
+
+        return entry.Storage == StorageType.StreamingAssets
+            ? EntryKind.Text
+            : EntryKind.Pack;
+    }
+
     public static void Reload()
     {
         _isInitialized = false;
         Initialize();
     }
 
-    /// <summary>
-    /// 【核心】根据 PackID 获取已加载的 PackData 对象喵~
-    /// </summary>
-    public static T GetPack<T>(string packID) where T : BasePackData
+    public static T GetPack<T>(string id) where T : BasePackData
     {
-        if (!_isInitialized) Initialize();
+        var entry = RequireEntry(id);
+        if (entry == null) return null;
 
-        if (!_metadata.TryGetValue(packID, out var meta))
+        if (entry.Kind != EntryKind.Pack && entry.Kind != EntryKind.Unknown)
         {
-            Debug.LogError($"[MetaLib] 找不到 PackID 为 '{packID}' 的元数据喵~");
+            Debug.LogError($"[MetaLib] Entry '{id}' is not registered as a Pack.");
             return null;
         }
 
-        string jsonContent = "";
-        switch (meta.Storage)
-        {
-            case StorageType.Resources:
-                var textAsset = Resources.Load<TextAsset>(meta.ResourcePath);
-                if (textAsset != null)
-                {
-                    jsonContent = textAsset.text;
-                }
-                else
-                {
-                    Debug.LogError($"[MetaLib] 在 Resources 中找不到资源：{meta.ResourcePath}");
-                    return null;
-                }
-                break;
-            
-            case StorageType.StreamingAssets:
-                try
-                {
-                    string fullPath = System.IO.Path.Combine(Application.streamingAssetsPath, meta.ResourcePath);
-                    jsonContent = System.IO.File.ReadAllText(fullPath);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError($"[MetaLib] 从 StreamingAssets 读取文件失败：{meta.ResourcePath} | {e.Message}");
-                    return null;
-                }
-                break;
-        }
-
+        var jsonContent = GetRaw(id);
         if (string.IsNullOrEmpty(jsonContent)) return null;
 
         try
         {
-            // 使用全局 JSON 序列化设置喵~
-            return JsonConvert.DeserializeObject<T>(jsonContent, MetaLib.JsonSettings);
+            return JsonConvert.DeserializeObject<T>(jsonContent, JsonSettings);
         }
         catch (Exception e)
         {
-            Debug.LogError($"[MetaLib] 反序列化 PackData 失败 (ID: {packID}): {e.Message}");
+            Debug.LogError($"[MetaLib] Failed to deserialize pack '{id}': {e.Message}");
             return null;
         }
     }
 
-    public static MetaEntry GetMeta(string packID)
+    public static T GetObject<T>(string id)
     {
-        if (!_isInitialized) Initialize();
-        _metadata.TryGetValue(packID, out var entry);
-        return entry;
+        object obj = GetObject(id, typeof(T));
+        return obj is T typed ? typed : default;
     }
 
-    /// <summary>
-    /// 【便捷方法】根据 PackID 获取原始 JSON 字符串喵~
-    /// 用于直接写入 VFS 等场景，无需反序列化喵！
-    /// </summary>
-    public static string GetMetaString(string packID)
+    public static object GetObject(string id)
     {
-        if (!_isInitialized) Initialize();
+        var entry = RequireEntry(id);
+        if (entry == null) return null;
 
-        if (!_metadata.TryGetValue(packID, out var meta))
-        {
-            Debug.LogError($"[MetaLib] 找不到 PackID 为 '{packID}' 的元数据喵~");
-            return null;
-        }
+        var resolvedType = ResolveObjectType(entry.ObjectType);
+        return GetObject(id, resolvedType);
+    }
 
-        switch (meta.Storage)
+    public static string GetRaw(string id)
+    {
+        var entry = RequireEntry(id);
+        if (entry == null) return null;
+
+        switch (entry.Storage)
         {
             case StorageType.Resources:
-                var textAsset = Resources.Load<TextAsset>(meta.ResourcePath);
-                if (textAsset != null)
+            {
+                var textAsset = Resources.Load<TextAsset>(entry.ResourcePath);
+                if (textAsset == null)
                 {
-                    return textAsset.text;
-                }
-                else
-                {
-                    Debug.LogError($"[MetaLib] 在 Resources 中找不到资源：{meta.ResourcePath}");
+                    Debug.LogError($"[MetaLib] Resource not found: {entry.ResourcePath}");
                     return null;
                 }
 
+                return textAsset.text;
+            }
             case StorageType.StreamingAssets:
+            {
                 try
                 {
-                    string fullPath = System.IO.Path.Combine(Application.streamingAssetsPath, meta.ResourcePath);
-                    return System.IO.File.ReadAllText(fullPath);
+                    string fullPath = Path.Combine(Application.streamingAssetsPath, entry.ResourcePath);
+                    return File.ReadAllText(fullPath);
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"[MetaLib] 从 StreamingAssets 读取文件失败：{meta.ResourcePath} | {e.Message}");
+                    Debug.LogError($"[MetaLib] Failed to read StreamingAssets file '{entry.ResourcePath}': {e.Message}");
                     return null;
                 }
+            }
+            default:
+                return null;
         }
-
-        return null;
     }
 
-    /// <summary>
-    /// 【兼容旧存档】通过资源路径反向查找元数据喵~
-    /// </summary>
+    public static string GetMetaString(string id) => GetRaw(id);
+
+    public static MetaEntry GetMeta(string id)
+    {
+        if (!_isInitialized) Initialize();
+        _metadata.TryGetValue(id, out var entry);
+        return entry;
+    }
+
     public static MetaEntry GetMetaByPath(string resourcePath)
     {
         if (!_isInitialized) Initialize();
@@ -202,55 +241,167 @@ public static class MetaLib
                 return entry;
             }
         }
+
         return null;
     }
-    
+
     public static IEnumerable<MetaEntry> GetAllMetas()
     {
         if (!_isInitialized) Initialize();
         return _metadata.Values;
     }
 
-    public static bool HasMeta(string packID)
+    public static bool HasMeta(string id)
     {
         if (!_isInitialized) Initialize();
-        return _metadata.ContainsKey(packID);
+        return _metadata.ContainsKey(id);
     }
 
-    public static void Register(string packID, MetaEntry entry)
+    public static bool HasEntry(string id) => HasMeta(id);
+
+    public static void Register(string id, MetaEntry entry)
     {
         if (!_isInitialized) Initialize();
+        if (string.IsNullOrEmpty(id) || entry == null) return;
 
-        if (string.IsNullOrEmpty(packID)) return;
-        if (entry == null) return;
+        entry.EffectiveID = id;
+        if (entry.Kind == EntryKind.Unknown)
+        {
+            entry.Kind = InferEntryKind(entry);
+        }
 
-        entry.PackID = packID;
-        _metadata[packID] = entry;
+        _metadata[id] = entry;
     }
 
-    public static void Unregister(string packID)
+    public static void Unregister(string id)
     {
         if (!_isInitialized) Initialize();
-        _metadata.Remove(packID);
+        _metadata.Remove(id);
     }
-    
+
     public static void Clear()
     {
         if (!_isInitialized) Initialize();
         _metadata.Clear();
     }
 
+    private static MetaEntry RequireEntry(string id)
+    {
+        if (!_isInitialized) Initialize();
+
+        if (!_metadata.TryGetValue(id, out var entry))
+        {
+            Debug.LogError($"[MetaLib] No metadata found for ID '{id}'.");
+            return null;
+        }
+
+        return entry;
+    }
+
+    private static object GetObject(string id, Type requestedType)
+    {
+        var entry = RequireEntry(id);
+        if (entry == null) return null;
+
+        if (entry.Storage == StorageType.Resources)
+        {
+            return LoadResourceObject(id, entry, requestedType);
+        }
+
+        string raw = GetRaw(id);
+        if (string.IsNullOrEmpty(raw)) return null;
+
+        if (requestedType == null || requestedType == typeof(string))
+        {
+            return raw;
+        }
+
+        try
+        {
+            return JsonConvert.DeserializeObject(raw, requestedType, JsonSettings);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[MetaLib] Failed to deserialize '{id}' as {requestedType.FullName}: {e.Message}");
+            return null;
+        }
+    }
+
+    private static object LoadResourceObject(string id, MetaEntry entry, Type requestedType)
+    {
+        Type targetType = requestedType ?? ResolveObjectType(entry.ObjectType) ?? typeof(UnityEngine.Object);
+
+        if (typeof(UnityEngine.Object).IsAssignableFrom(targetType))
+        {
+            var asset = Resources.Load(entry.ResourcePath, targetType);
+            if (asset == null)
+            {
+                Debug.LogError($"[MetaLib] Resource object not found: {entry.ResourcePath} ({targetType.FullName})");
+            }
+
+            return asset;
+        }
+
+        var textAsset = Resources.Load<TextAsset>(entry.ResourcePath);
+        if (textAsset == null)
+        {
+            Debug.LogError($"[MetaLib] Text resource not found for non-Unity object '{id}': {entry.ResourcePath}");
+            return null;
+        }
+
+        if (targetType == typeof(string))
+        {
+            return textAsset.text;
+        }
+
+        try
+        {
+            return JsonConvert.DeserializeObject(textAsset.text, targetType, JsonSettings);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[MetaLib] Failed to deserialize resource '{id}' as {targetType.FullName}: {e.Message}");
+            return null;
+        }
+    }
+
+    private static Type ResolveObjectType(string objectTypeName)
+    {
+        if (string.IsNullOrEmpty(objectTypeName))
+        {
+            return null;
+        }
+
+        var type = Type.GetType(objectTypeName, false);
+        if (type != null)
+        {
+            return type;
+        }
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            type = assembly.GetType(objectTypeName, false);
+            if (type != null)
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
 #if UNITY_EDITOR
     public static void Save()
     {
         var json = JsonConvert.SerializeObject(_metadata, Formatting.Indented);
-        string directory = System.IO.Path.GetDirectoryName(Application.dataPath + "/Resources/" + METALIB_PATH + ".json");
-        if (!System.IO.Directory.Exists(directory))
+        string directory = Path.GetDirectoryName(Application.dataPath + "/Resources/" + METALIB_PATH + ".json");
+        if (!Directory.Exists(directory))
         {
-            System.IO.Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(directory);
         }
+
         string fullPath = Application.dataPath + "/Resources/" + METALIB_PATH + ".json";
-        System.IO.File.WriteAllText(fullPath, json);
+        File.WriteAllText(fullPath, json);
         UnityEditor.AssetDatabase.Refresh();
     }
 #else
@@ -261,11 +412,12 @@ public static class MetaLib
     {
         if (!_isInitialized) Initialize();
         var info = new System.Text.StringBuilder();
-        info.AppendLine($"[MetaLib] 元数据总数：{_metadata.Count}");
+        info.AppendLine($"[MetaLib] Entry count: {_metadata.Count}");
         foreach (var kvp in _metadata)
         {
-            info.AppendLine($"  - {kvp.Key}: {kvp.Value?.DisplayName} (Path: {kvp.Value?.ResourcePath})");
+            info.AppendLine($"  - {kvp.Key}: {kvp.Value?.Kind} ({kvp.Value?.ResourcePath})");
         }
+
         return info.ToString();
     }
 }

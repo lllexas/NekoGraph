@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 /// <summary>
 /// NekoGraph 运行时类型定义 - 不依赖任何 Unity Editor 命名空间喵~

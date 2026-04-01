@@ -1,4 +1,4 @@
-namespace NekoGraph.Cli;
+﻿namespace NekoGraph.Cli;
 
 internal sealed class ParsedCommand
 {
@@ -30,6 +30,16 @@ internal sealed class ParsedCommand
 
     public bool EditField { get; init; }
 
+    public bool VfsList { get; init; }
+
+    public bool VfsShow { get; init; }
+
+    public bool VfsMkdir { get; init; }
+
+    public bool VfsWrite { get; init; }
+
+    public bool VfsDelete { get; init; }
+
     public string? PackId { get; init; }
 
     public string? TargetId { get; init; }
@@ -49,6 +59,8 @@ internal sealed class ParsedCommand
     public string? FieldName { get; init; }
 
     public string? FieldValue { get; init; }
+
+    public string? VfsPath { get; init; }
 
     public string? ErrorMessage { get; init; }
 }
@@ -114,6 +126,51 @@ internal static class CommandParser
             return string.IsNullOrWhiteSpace(args[2]) || string.IsNullOrWhiteSpace(args[3])
                 ? new ParsedCommand { ErrorMessage = "--show --mission requires <packid> and <missionid>." }
                 : new ParsedCommand { ShowMission = true, PackId = args[2], TargetId = args[3] };
+        }
+
+        if (args.Length == 4 &&
+            string.Equals(args[0], "--vfs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--ls", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--vfs --ls requires <packid> <path>." }
+                : new ParsedCommand { VfsList = true, PackId = args[2], VfsPath = args[3] };
+        }
+
+        if (args.Length == 4 &&
+            string.Equals(args[0], "--vfs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--show", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--vfs --show requires <packid> <path>." }
+                : new ParsedCommand { VfsShow = true, PackId = args[2], VfsPath = args[3] };
+        }
+
+        if (args.Length == 4 &&
+            string.Equals(args[0], "--vfs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--mkdir", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--vfs --mkdir requires <packid> <path>." }
+                : new ParsedCommand { VfsMkdir = true, PackId = args[2], VfsPath = args[3] };
+        }
+
+        if (args.Length == 5 &&
+            string.Equals(args[0], "--vfs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--write", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--vfs --write requires <packid> <path> <datajson>." }
+                : new ParsedCommand { VfsWrite = true, PackId = args[2], VfsPath = args[3], FieldValue = args[4] };
+        }
+
+        if (args.Length == 4 &&
+            string.Equals(args[0], "--vfs", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--delete", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--vfs --delete requires <packid> <path>." }
+                : new ParsedCommand { VfsDelete = true, PackId = args[2], VfsPath = args[3] };
         }
 
         if (args.Length >= 5 &&

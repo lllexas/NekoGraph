@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 /// <summary>
 /// EXEHandler 属性 - 标记 VFS 文件节点的后缀执行处理器喵~

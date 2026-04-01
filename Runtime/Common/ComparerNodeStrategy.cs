@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -84,7 +84,7 @@ public class ComparerNodeStrategy : NodeStrategy
                 pack.Nodes.TryGetValue(nodeId, out var node) &&
                 node is TriggerNodeData triggerNode)
             {
-                if (GraphRunner.Instance.EnableDebugLog)
+                if (runner != null && runner.EnableDebugLog)
                 {
                     Debug.Log($"[ComparerNode] 检测到失败，回溯并重连 Trigger: {triggerNode.Event} (NodeID: {nodeId}) 喵！");
                 }

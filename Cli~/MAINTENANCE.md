@@ -1,4 +1,4 @@
-# NekoGraph CLI Maintenance
+﻿# NekoGraph CLI Maintenance
 
 This folder contains two things:
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,7 +24,7 @@ public class CommandNodeStrategy : NodeStrategy
         }
 
         // 执行命令
-        ExecuteCommand(commandNode, context, pack);
+        ExecuteCommand(commandNode, context, pack, runner);
 
         // 向输出节点传播信号
         PropagateSignal(commandNode, context, pack);
@@ -38,7 +38,7 @@ public class CommandNodeStrategy : NodeStrategy
     /// <summary>
     /// 执行命令喵~
     /// </summary>
-    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack)
+    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
     {
         var command = node.Command;
 
@@ -58,7 +58,7 @@ public class CommandNodeStrategy : NodeStrategy
         try
         {
             // 从 GraphRunner 获取当前执行主体的权限喵~
-            int subjectLevel = GraphRunner.Instance?.GetSubjectLevel() ?? PackAccessSubjects.Player;
+            int subjectLevel = runner?.GetSubjectLevel() ?? PackAccessSubjects.Player;
             var output = CommandRegistry.Execute(command.CommandName, subjectLevel, args, context.Args, null);
 
             // 将命令输出的 Payload 传递给下游节点
@@ -72,7 +72,7 @@ public class CommandNodeStrategy : NodeStrategy
             {
                 if (output.Result == CommandResult.Failed)
                     Debug.LogError($"[CommandNode] {output.Message}");
-                else if (GraphRunner.Instance.EnableDebugLog)
+                else if (runner != null && runner.EnableDebugLog)
                     Debug.Log($"[CommandNode] {output.Message}");
             }
         }

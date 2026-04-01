@@ -1,4 +1,4 @@
-namespace NekoGraph.Cli;
+﻿namespace NekoGraph.Cli;
 
 internal static class CliApp
 {
@@ -42,6 +42,31 @@ internal static class CliApp
         if (command.ShowMission)
         {
             return ShowLocalCommand.ExecuteMission(command.PackId!, command.TargetId!);
+        }
+
+        if (command.VfsList)
+        {
+            return VfsCommand.ExecuteList(command.PackId!, command.VfsPath!);
+        }
+
+        if (command.VfsShow)
+        {
+            return VfsCommand.ExecuteShow(command.PackId!, command.VfsPath!);
+        }
+
+        if (command.VfsMkdir)
+        {
+            return VfsCommand.ExecuteMkdir(command.PackId!, command.VfsPath!);
+        }
+
+        if (command.VfsWrite)
+        {
+            return VfsCommand.ExecuteWrite(command.PackId!, command.VfsPath!, command.FieldValue!);
+        }
+
+        if (command.VfsDelete)
+        {
+            return VfsCommand.ExecuteDelete(command.PackId!, command.VfsPath!);
         }
 
         if (command.QueryBridge)

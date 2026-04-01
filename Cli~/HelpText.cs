@@ -1,4 +1,4 @@
-namespace NekoGraph.Cli;
+﻿namespace NekoGraph.Cli;
 
 internal static class HelpText
 {
@@ -14,6 +14,23 @@ internal static class HelpText
           一个剧情脚本 JSON 文件，包含一张节点图，描述一段剧情或任务逻辑
           的完整执行流程。用 <packid> 指定，即文件名去掉 .json 后缀。
           Pack 从根节点开始执行，信号沿节点之间的边逐步传播。
+
+          也可以把 Pack 当成一个“静态盘符”来看，而不只是一段可运行流程：
+            • Pack 本身就是盘符 / 命名空间
+            • RootNode 就是路径根 /
+            • RootNode 的直接子节点就是第一层路径
+            • 路径只表达 Pack 内部结构，不重复表达外部归属
+
+          例如当 PackID = equipment 时，更推荐：
+            /mainslot
+            /otherslot
+            /hidepack
+
+          而不是：
+            /player/equipment/mainslot
+
+          因为 player 的归属通常已经在 UserModel / PackDataDict 中表达，
+          equipment 也已经由 PackID 表达。
 
         信号 (Signal)
           图中流动的"执行令牌"，从根节点出发沿边传播，驱动每个节点执行
@@ -34,6 +51,21 @@ internal static class HelpText
             trigger   等待外部事件触发后继续传播信号（被动等待）
             comparer  条件判断：满足条件走 Pass 输出，否则走 Fail 输出
             command   执行命令：调用游戏系统（播放动画、更改状态等）
+
+        静态 Pack 文件设计
+          当 Pack 被当成静态 VFS 使用时，推荐采用 Unix 风格：
+            • 目录表达分类
+            • 文件表达对象
+            • 文件内容只保存最小引用
+
+          例如装备包：
+            /
+            ├─ mainslot/1.equipid
+            ├─ otherslot/offhand.equipid
+            └─ hidepack/offhand.equipid
+
+          其中 `.equipid` 文件内容推荐只保留：
+            { "Id": "ZombieFistsSO" }
 
         桥接 (Bridge)
           从一个具名节点到另一个具名节点的完整路径，中间穿插匿名节点：
@@ -216,6 +248,24 @@ internal static class HelpText
         --show --mission <packid> <missionid>
             显示一个任务的所有节点（mission-a / s / f / r）。
 
+        --vfs --ls <packid> <path>
+            列出静态 Pack 中某个 VFS 目录下的直接子节点。
+            例：.\nekograph.cmd --vfs --ls equipment /
+
+        --vfs --show <packid> <path>
+            显示某个 VFS 节点的静态字段，包括 Name / Extension / DataJson。
+
+        --vfs --mkdir <packid> <path>
+            创建 VFS 目录。父目录不存在时会自动逐层补齐。
+
+        --vfs --write <packid> <path> <datajson>
+            写入一个 VFS 文件节点。若文件已存在，则覆盖其 DataJson；
+            若父目录不存在，则自动创建。
+            例：.\nekograph.cmd --vfs --write equipment /mainslot/1.equipid "{ ""Id"": ""ZombieFistsSO"" }"
+
+        --vfs --delete <packid> <path>
+            删除某个 VFS 节点；若是目录，则递归删除其所有子节点。
+
         --query --bridge <packid> <from-node-ref> <to-node-ref>
             显示两个具名节点之间的完整桥接路径及每个匿名节点信息。
             执行结构编辑之前必须先 query，确认路径后再操作。
@@ -291,6 +341,11 @@ internal static class HelpText
           nekograph-cli --show --node <packid> <node-ref>
           nekograph-cli --show --process <packid> <processid>
           nekograph-cli --show --mission <packid> <missionid>
+          nekograph-cli --vfs --ls <packid> <path>
+          nekograph-cli --vfs --show <packid> <path>
+          nekograph-cli --vfs --mkdir <packid> <path>
+          nekograph-cli --vfs --write <packid> <path> <datajson>
+          nekograph-cli --vfs --delete <packid> <path>
           nekograph-cli --query --bridge <packid> <from-node-ref> <to-node-ref> [--from-port N] [--to-port N]
           nekograph-cli --query --fields <packid> <from-node-ref> <to-node-ref> <unnamed-node-index> [--from-port N] [--to-port N]
           nekograph-cli --edit --create-bridge <packid> <from-node-ref> <to-node-ref> <node-kind-list|none> [--from-port N] [--to-port N]

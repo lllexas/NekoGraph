@@ -1,4 +1,4 @@
-public enum GraphInstanceSlot
+﻿public enum GraphInstanceSlot
 {
     Player = 0,
     AI_1 = 100,

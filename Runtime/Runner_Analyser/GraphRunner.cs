@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -70,8 +70,6 @@ using UnityEngine;
 /// </summary>
 public class GraphRunner
 {
-    public static GraphRunner Instance => GraphHub.Instance?.DefaultRunner;
-
     /// <summary>
     /// 主体等级（类比操作系统的进程 UID）喵~ 🔑
     /// 每个 GraphRunner 实例对应一个执行主体（Player/AI/System）
@@ -82,7 +80,7 @@ public class GraphRunner
     /// - 系统调用时，内核用 UID 检查权限
     /// 
     /// 【使用场景】
-    /// - NodeStrategy 执行时，通过 GraphRunner.Instance.GetSubjectLevel() 获取
+    /// - NodeStrategy 执行时，通过当前 runner.GetSubjectLevel() 获取
     /// - 调用 Analyser API 时传入，用于权限校验
     /// - 默认值来自 EntityGraphContext 的 GraphInstanceSlot
     /// </summary>
@@ -133,8 +131,8 @@ public class GraphRunner
     /// 【操作系统类比】类似 getuid() 系统调用
     /// 
     /// 【使用示例】
-    /// var subjectLevel = GraphRunner.Instance.GetSubjectLevel();
-    /// var node = GraphAnalyser.Instance.GetNode(packID, path, subjectLevel);
+    /// var subjectLevel = runner.GetSubjectLevel();
+    /// var node = analyser.GetNode(packID, path, subjectLevel);
     /// </summary>
     public int GetSubjectLevel() => _subjectLevel;
 

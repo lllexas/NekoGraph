@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -45,7 +45,7 @@ public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
         }
 
         // 1. 激活关联的 Leaf A 节点
-        ActivateLeafNodes(spineNode, context, pack);
+        ActivateLeafNodes(spineNode, context, pack, runner);
 
         // 2. 向下一个 Spine 节点传播信号
         PropagateToNextSpine(spineNode, context, pack);
@@ -62,14 +62,14 @@ public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
         }
     }
 
-    private void ActivateLeafNodes(SpineNodeData node, SignalContext context, BasePackData pack)
+    private void ActivateLeafNodes(SpineNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
     {
         // 查找所有与当前 Spine 节点共享 ProcessID 的 Leaf A 节点
         foreach (var leafKvp in pack.Nodes)
         {
             if (leafKvp.Value is LeafNode_A_Data leaf && leaf.ProcessID == node.ProcessID)
             {
-                if (GraphRunner.Instance.EnableDebugLog)
+                if (runner != null && runner.EnableDebugLog)
                 {
                     Debug.Log($"[SpineNode] 激活 Leaf A: {leaf.NodeID} (ProcessID: {leaf.ProcessID})");
                 }
@@ -167,7 +167,7 @@ public class LeafNodeAStrategy : NodeStrategy
         EnqueueSignals(pack, leafNode.OutputConnections, context);
 
         // 同时通知对应的 Leaf B 节点（通过 pack.Nodes 查找）
-        NotifyLeafB(leafNode, context, pack);
+        NotifyLeafB(leafNode, context, pack, runner);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
@@ -175,14 +175,14 @@ public class LeafNodeAStrategy : NodeStrategy
         // Leaf A 节点通常不直接响应外部事件
     }
 
-    private void NotifyLeafB(LeafNode_A_Data node, SignalContext context, BasePackData pack)
+    private void NotifyLeafB(LeafNode_A_Data node, SignalContext context, BasePackData pack, GraphRunner runner)
     {
         // 查找对应的 Leaf B 节点（共享 ProcessID）
         foreach (var leafBKvp in pack.Nodes)
         {
             if (leafBKvp.Value is LeafNode_B_Data leafB && leafB.ProcessID == node.ProcessID)
             {
-                if (GraphRunner.Instance.EnableDebugLog)
+                if (runner != null && runner.EnableDebugLog)
                 {
                     Debug.Log($"[LeafNode A] 通知 Leaf B: {leafB.NodeID}");
                 }

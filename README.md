@@ -1,4 +1,4 @@
-# NekoGraph
+﻿# NekoGraph
 
 A signal-driven visual scripting runtime for Unity, designed for mission/story/social graph execution with a Unix-style Virtual File System (VFS) interface.
 
@@ -47,6 +47,50 @@ analyser.GetNode(packID, "/path/file.txt", subjectLevel);
 analyser.GetChildren(packID, "/path/", subjectLevel);
 analyser.Delete(packID, "/path/file.txt", subjectLevel);
 ```
+
+## Static Pack Semantics
+
+NekoGraph packs are not only runnable graphs. A pack can also be treated as a static Unix-style virtual disk.
+
+- A `Pack` is the drive / volume itself.
+- Ownership or higher-level grouping belongs outside the path, typically in the caller's `PackDataDict` or `UserModel`.
+- `RootNode` is the VFS root `/`.
+- Direct children of `RootNode` are the first path segments.
+
+That means a path should describe only the structure inside the pack itself.
+
+Good:
+
+```text
+PackID = equipment
+/
+├── inventory/
+├── slots/
+└── hotbar/
+```
+
+Avoid duplicating outer semantics inside the path:
+
+```text
+/player/equipment/inventory
+```
+
+if `player` is already implied by the owner of the pack and `equipment` is already the `PackID`.
+
+For reference-style files, prefer tiny, atomic file contents. Example:
+
+```json
+{
+  "Id": "ZombieFistsSO"
+}
+```
+
+In that design:
+
+- path expresses structure
+- file name expresses object identity or slot position
+- file content expresses the smallest useful reference
+- runtime behavior stays in external systems, not in the static pack layout
 
 ## VFS Runtime Blueprint (ExeRegistry)
 

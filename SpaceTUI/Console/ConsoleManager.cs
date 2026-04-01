@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -80,7 +80,7 @@ namespace SpaceTUI
     {
         get
         {
-            var analyser = GraphAnalyser.Instance;
+            var analyser = GetDefaultAnalyser();
             if (analyser == null) return null;
 
             // 1. 运行时显式切换的盘符优先喵~
@@ -114,7 +114,7 @@ namespace SpaceTUI
     public List<(char letter, string packID)> GetDriveMap()
     {
         var result = new List<(char, string)>();
-        var analyser = GraphAnalyser.Instance;
+        var analyser = GetDefaultAnalyser();
         if (analyser == null) return result;
         char letter = 'A';
         foreach (var id in analyser.GetAllPackIds(_subjectLevel))
@@ -186,7 +186,7 @@ namespace SpaceTUI
             return true;
         }
 
-        var analyser = GraphAnalyser.Instance;
+        var analyser = GetDefaultAnalyser();
         if (analyser == null)
         {
             Log("GraphAnalyser 实例不存在", Color.red);
@@ -244,7 +244,7 @@ namespace SpaceTUI
             return false;
         }
 
-        var analyser = GraphAnalyser.Instance;
+        var analyser = GetDefaultAnalyser();
         if (analyser == null)
         {
             Log("GraphAnalyser 实例不存在", Color.red);
@@ -280,7 +280,7 @@ namespace SpaceTUI
         // 固定首选盘符（如果有）；否则清空让属性自动回退
         string preferred = GetPreferredPackID();
         _currentVFSPackID = (!string.IsNullOrEmpty(preferred) &&
-                             GraphAnalyser.Instance?.GetPack(preferred, _subjectLevel) != null)
+                             GetDefaultAnalyser()?.GetPack(preferred, _subjectLevel) != null)
             ? preferred
             : null;
 
@@ -540,7 +540,7 @@ namespace SpaceTUI
         string resolvedRedirectPath = redirectPath;
         if (Regex.IsMatch(redirectPath, @"^\.\d+$"))
         {
-            var analyserRedirect = GraphAnalyser.Instance;
+            var analyserRedirect = GetDefaultAnalyser();
             if (analyserRedirect != null)
             {
                 var children = analyserRedirect.GetChildren(CurrentVFSPackID, CurrentPath, _subjectLevel);
@@ -570,7 +570,7 @@ namespace SpaceTUI
             return;
         }
 
-        var analyser = GraphAnalyser.Instance;
+        var analyser = GetDefaultAnalyser();
         if (analyser == null) { Log("GraphAnalyser 未初始化喵！", Color.red); return; }
 
         if (isAppend)
@@ -617,6 +617,10 @@ namespace SpaceTUI
                 Log($"Pipeline failed at '{commandName}': {lastOutput.Message}", Color.red);
                 break;
             }
+            if (!string.IsNullOrEmpty(lastOutput.Message))
+            {
+                Log(lastOutput.Message, lastOutput.Result == CommandResult.Success ? Color.green : Color.yellow);
+            }
         }
 
         return lastOutput;
@@ -639,7 +643,7 @@ namespace SpaceTUI
     {
         if (string.IsNullOrEmpty(CurrentVFSPackID)) return args;
 
-        var analyser = GraphAnalyser.Instance;
+        var analyser = GetDefaultAnalyser();
         if (analyser == null) return args;
 
         // 获取当前目录的子节点列表
@@ -745,9 +749,14 @@ namespace SpaceTUI
                 Log($"Pipeline failed at '{commandName}': {output.Message}", Color.red);
                 break;
             }
+            if (!string.IsNullOrEmpty(output.Message))
+            {
+                Log(output.Message, output.Result == CommandResult.Success ? Color.green : Color.yellow);
+            }
 
             // 成功则继续
-            if (GraphRunner.Instance != null && GraphRunner.Instance.EnableDebugLog)
+            var runner = GetDefaultRunner();
+            if (runner != null && runner.EnableDebugLog)
             {
                 Log($"Pipeline: {commandName} → Payload: {(payload != null ? payload.GetType().Name : "null")}", Color.gray);
             }
@@ -765,7 +774,7 @@ namespace SpaceTUI
         PostSystem.Instance.Register(this);
 
         // 兜底：若 VFS 系统已就绪（GraphAnalyser 已有挂盘），直接重置路径喵~
-        if (GraphAnalyser.Instance != null && CurrentVFSPackID != null)
+        if (GetDefaultAnalyser() != null && CurrentVFSPackID != null)
         {
             _currentPath = "/";
         }
@@ -824,6 +833,16 @@ namespace SpaceTUI
                     Log(output.Message, output.Result == CommandResult.Success ? UnityEngine.Color.green : UnityEngine.Color.red);
             });
         }
+    }
+
+    private static GraphAnalyser GetDefaultAnalyser()
+    {
+        return GraphHub.Instance?.DefaultAnalyser;
+    }
+
+    private static GraphRunner GetDefaultRunner()
+    {
+        return GraphHub.Instance?.DefaultRunner;
     }
     }
 }

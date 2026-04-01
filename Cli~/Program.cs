@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using NekoGraph.Cli;
 
 Console.OutputEncoding = Encoding.UTF8;

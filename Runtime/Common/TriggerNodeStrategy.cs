@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -38,17 +38,17 @@ public class TriggerNodeStrategy : NodeStrategy
         }
 
         // 注册监听，注入简单的传导逻辑喵~
-        RegisterTrigger(triggerNode, context, pack);
+        RegisterTrigger(triggerNode, context, pack, runner);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
 
-    private void RegisterTrigger(TriggerNodeData node, SignalContext context, BasePackData pack)
+    private void RegisterTrigger(TriggerNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
     {
         Action<object> callback = null;
         callback = payload =>
         {
-            if (GraphRunner.Instance.EnableDebugLog)
+            if (runner != null && runner.EnableDebugLog)
             {
                 Debug.Log($"[TriggerNode] 事件响起：{node.Event}，信号放行喵！");
             }
