@@ -67,6 +67,13 @@ internal static class HelpText
           其中 `.equipid` 文件内容推荐只保留：
             { "Id": "ZombieFistsSO" }
 
+          例如背包包：
+            /
+            └─ slots/1.item
+
+          其中 `.item` 文件内容推荐只保留：
+            { "Id": "Keycard_Lv1", "Count": 1, "InstanceId": null }
+
         桥接 (Bridge)
           从一个具名节点到另一个具名节点的完整路径，中间穿插匿名节点：
             具名节点  →  [匿名节点₀  →  匿名节点₁  →  ...]  →  具名节点
