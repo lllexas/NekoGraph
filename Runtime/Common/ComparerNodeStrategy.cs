@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using NekoGraph;
 
 /// <summary>
 /// ComparerNode 策略 - 逻辑判断与信号调度中心喵~
@@ -101,26 +101,63 @@ public class ComparerNodeStrategy : NodeStrategy
     /// </summary>
     private string FindSourceNodeId(ConnectionData conn, BasePackData pack)
     {
-        // 遍历所有节点，找到包含该连接的节点
+        // 遍历所有节点，按各自的语义输出字段查找来源
         foreach (var kvp in pack.Nodes)
         {
             if (kvp.Value is BaseNodeData node)
             {
-                // 检查这个节点的 OutputConnections 是否包含这个连接
-                if (node.OutputConnections != null)
+                foreach (var targetNodeId in GetSemanticOutputTargets(node, conn.FromPortIndex))
                 {
-                    foreach (var outputConn in node.OutputConnections)
-                    {
-                        if (outputConn.TargetNodeID == conn.TargetNodeID &&
-                            outputConn.FromPortIndex == conn.FromPortIndex)
-                        {
-                            return kvp.Key;
-                        }
-                    }
+                    if (targetNodeId == conn.TargetNodeID)
+                        return kvp.Key;
                 }
             }
         }
         return null;
+    }
+
+    private static IEnumerable<string> GetSemanticOutputTargets(BaseNodeData node, int fromPortIndex)
+    {
+        switch (node)
+        {
+            case RootNodeData rootNode:
+                return rootNode._ != null ? rootNode._ : Array.Empty<string>();
+            case SpineNodeData spineNode:
+                return spineNode.NextSpineNodeIDs != null ? spineNode.NextSpineNodeIDs : Array.Empty<string>();
+            case LeafNode_A_Data leafNodeA:
+                return leafNodeA.OutputNodeIds != null ? leafNodeA.OutputNodeIds : Array.Empty<string>();
+            case LeafNode_B_Data leafNodeB:
+                return leafNodeB.OutputNodeIds != null ? leafNodeB.OutputNodeIds : Array.Empty<string>();
+            case CommandNodeData commandNode:
+                return commandNode.OutputNodeIDs != null ? commandNode.OutputNodeIDs : Array.Empty<string>();
+            case TriggerNodeData triggerNode:
+                return fromPortIndex == 0
+                    ? (triggerNode.SignalOutputs != null ? triggerNode.SignalOutputs : Array.Empty<string>())
+                    : Array.Empty<string>();
+            case ComparerNodeData comparerNode:
+                return fromPortIndex switch
+                {
+                    0 => comparerNode.PassOutputs != null ? comparerNode.PassOutputs : Array.Empty<string>(),
+                    1 => comparerNode.FailOutputs != null ? comparerNode.FailOutputs : Array.Empty<string>(),
+                    _ => Array.Empty<string>()
+                };
+            case MissionNode_A_Data missionNodeA:
+                return missionNodeA.OutPutNodeIDs != null ? missionNodeA.OutPutNodeIDs : Array.Empty<string>();
+            case MissionNode_S_Data missionNodeS:
+                return missionNodeS.OutPutNodeIDs != null ? missionNodeS.OutPutNodeIDs : Array.Empty<string>();
+            case MissionNode_F_Data missionNodeF:
+                return missionNodeF.OutPutNodeIDs != null ? missionNodeF.OutPutNodeIDs : Array.Empty<string>();
+            case MissionNode_R_Data missionNodeR:
+                return missionNodeR.OutPutNodeIDs != null ? missionNodeR.OutPutNodeIDs : Array.Empty<string>();
+            case SocialMsgContentNodeData socialMsgContentNode:
+                return socialMsgContentNode.Out != null ? socialMsgContentNode.Out : Array.Empty<string>();
+            case ChoiceTextNodeData choiceTextNode:
+                return choiceTextNode.Out != null ? choiceTextNode.Out : Array.Empty<string>();
+            case VFSNodeData vfsNode:
+                return vfsNode.ChildNodeIDs != null ? vfsNode.ChildNodeIDs : Array.Empty<string>();
+            default:
+                return Array.Empty<string>();
+        }
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }

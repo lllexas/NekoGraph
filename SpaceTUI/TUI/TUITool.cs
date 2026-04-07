@@ -16,19 +16,6 @@ namespace SpaceTUI
     public static class TUITool
     {
     // ─────────────────────────────────────────────────────────────
-    //  Box Drawing 字符定义
-    // ─────────────────────────────────────────────────────────────
-    
-    private static readonly char BOX_TOP_LEFT = '┌';
-    private static readonly char BOX_TOP_RIGHT = '┐';
-    private static readonly char BOX_BOTTOM_LEFT = '└';
-    private static readonly char BOX_BOTTOM_RIGHT = '┘';
-    private static readonly char BOX_HORIZONTAL = '─';
-    private static readonly char BOX_VERTICAL = '│';
-    private static readonly char BOX_T_LEFT = '├';
-    private static readonly char BOX_T_RIGHT = '┤';
-    
-    // ─────────────────────────────────────────────────────────────
     //  基础：视觉宽度计算
     // ─────────────────────────────────────────────────────────────
     

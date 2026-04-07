@@ -7,7 +7,7 @@ using UnityEngine;
 /// 职责：
 /// - 目录节点（IsDirectory）：直接透传信号，不执行任何逻辑
 /// - 文件节点（IsFile）：查找 ExeRegistry 中对应后缀的处理器并执行
-/// - 始终向下游传播信号（同时传播 OutputConnections 和 ChildNodeIDs，与 CommandNodeStrategy 一致）
+/// - 始终向下游传播信号，运行时只认 ChildNodeIDs
 ///
 /// ExeRegistry 处理器由外部项目注册（[EXEHandler] 属性 + 静态方法），
 /// NekoGraph 本身不内置任何后缀的具体逻辑，保持通用性喵~
@@ -43,8 +43,7 @@ public class VFSNodeStrategy : NodeStrategy
             }
         }
 
-        // 传播信号到下游节点（与 CommandNodeStrategy 保持一致，同时传播两个字段）喵~
-        EnqueueSignals(pack, vfsNode.OutputConnections, context);
+        // 运行时只认 VFS 的语义输出字段 ChildNodeIDs
         EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
     }
 

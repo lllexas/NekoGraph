@@ -20,8 +20,8 @@ public class RootNodeStrategy : NodeStrategy
             Debug.Log($"[RootNode] 流程启动：{rootNode.NodeID}");
         }
 
-        // 向所有输出节点传播信号
-        EnqueueSignals(pack, rootNode.OutputConnections, context);
+        // 运行时只认 Root 的语义输出字段 `_`
+        EnqueueSignals(pack, rootNode._, context);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
@@ -82,10 +82,7 @@ public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
 
     private void PropagateToNextSpine(SpineNodeData node, SignalContext context, BasePackData pack)
     {
-        // 通过 OutputConnections 传播
-        EnqueueSignals(pack, node.OutputConnections, context);
-
-        // 兼容旧版 NextSpineNodeIDs 字段
+        // 运行时只认 Spine 的语义输出字段 NextSpineNodeIDs
         EnqueueSignals(pack, node.NextSpineNodeIDs, context);
     }
 
@@ -163,8 +160,8 @@ public class LeafNodeAStrategy : NodeStrategy
             Debug.Log($"[LeafNode A] 执行演出：{leafNode.NodeID} (ProcessID: {leafNode.ProcessID})");
         }
 
-        // 向输出节点传播信号（通常是执行具体动作）
-        EnqueueSignals(pack, leafNode.OutputConnections, context);
+        // 运行时只认 Leaf A 的语义输出字段 OutputNodeIds
+        EnqueueSignals(pack, leafNode.OutputNodeIds, context);
 
         // 同时通知对应的 Leaf B 节点（通过 pack.Nodes 查找）
         NotifyLeafB(leafNode, context, pack, runner);
@@ -207,8 +204,8 @@ public class LeafNodeBStrategy : NodeStrategy
             Debug.Log($"[LeafNode B] 执行回调：{leafNode.NodeID} (ProcessID: {leafNode.ProcessID})");
         }
 
-        // 向输出节点传播信号（通常是完成回调）
-        EnqueueSignals(pack, leafNode.OutputConnections, context);
+        // 运行时只认 Leaf B 的语义输出字段 OutputNodeIds
+        EnqueueSignals(pack, leafNode.OutputNodeIds, context);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)

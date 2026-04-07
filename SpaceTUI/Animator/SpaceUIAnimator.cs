@@ -403,7 +403,8 @@ namespace SpaceTUI
 
             // 轨道 A：状态转换
             _stateTween = DOTween.Sequence();
-            _stateTween.Join(_canvasGroup.DOFade(1f, _fadeDuration).SetEase(_fadeInEase));
+            _stateTween.Join(DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 1f, _fadeDuration)
+                .SetEase(_fadeInEase));
             _stateTween.Join(transform.DOLocalMove(_slideInStartPosition, _fadeDuration).SetEase(_fadeInEase));
             _stateTween.OnComplete(() => IsVisible = true);
 
@@ -429,7 +430,8 @@ namespace SpaceTUI
 
             // 轨道 A：状态转换
             _stateTween = DOTween.Sequence();
-            _stateTween.Join(_canvasGroup.DOFade(0f, _fadeDuration).SetEase(_fadeOutEase));
+            _stateTween.Join(DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 0f, _fadeDuration)
+                .SetEase(_fadeOutEase));
             _stateTween.Join(transform.DOLocalMove(_slideInStartPosition - Vector3.up * _slideInOffset, _fadeDuration).SetEase(_fadeOutEase));
             _stateTween.OnComplete(() =>
             {

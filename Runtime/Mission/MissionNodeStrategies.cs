@@ -68,10 +68,7 @@ public class MissionNodeAStrategy : NodeStrategy
     /// </summary>
     private void PropagateSignal(MissionNode_A_Data node, SignalContext context, BasePackData pack)
     {
-        // 通过连接传播信号
-        EnqueueSignals(pack, node.OutputConnections, context);
-
-        // 兼容旧版 OutPutNodeIDs 字段
+        // 运行时只认 Mission 的语义输出字段 OutPutNodeIDs
         EnqueueSignals(pack, node.OutPutNodeIDs, context);
     }
 
@@ -141,10 +138,7 @@ public class MissionNodeSStrategy : NodeStrategy
     /// </summary>
     private void PropagateSignal(MissionNode_S_Data node, SignalContext context, BasePackData pack)
     {
-        // 通过连接传播信号
-        EnqueueSignals(pack, node.OutputConnections, context);
-
-        // 兼容旧版 OutPutNodeIDs 字段
+        // 运行时只认 Mission 的语义输出字段 OutPutNodeIDs
         EnqueueSignals(pack, node.OutPutNodeIDs, context);
     }
 
@@ -210,10 +204,7 @@ public class MissionNodeFStrategy : NodeStrategy
     /// </summary>
     private void PropagateSignal(MissionNode_F_Data node, SignalContext context, BasePackData pack)
     {
-        // 通过连接传播信号
-        EnqueueSignals(pack, node.OutputConnections, context);
-
-        // 兼容旧版 OutPutNodeIDs 字段
+        // 运行时只认 Mission 的语义输出字段 OutPutNodeIDs
         EnqueueSignals(pack, node.OutPutNodeIDs, context);
     }
 
@@ -293,10 +284,7 @@ public class MissionNodeRStrategy : NodeStrategy
     /// </summary>
     private void PropagateSignal(MissionNode_R_Data node, SignalContext context, BasePackData pack)
     {
-        // 通过连接传播信号
-        EnqueueSignals(pack, node.OutputConnections, context);
-
-        // 兼容旧版 OutPutNodeIDs 字段
+        // 运行时只认 Mission 的语义输出字段 OutPutNodeIDs
         EnqueueSignals(pack, node.OutPutNodeIDs, context);
     }
 

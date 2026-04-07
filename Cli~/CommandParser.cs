@@ -16,6 +16,12 @@ internal sealed class ParsedCommand
 
     public bool ShowNode { get; init; }
 
+    public bool CreatePack { get; init; }
+
+    public bool RegisterPack { get; init; }
+
+    public bool CreateProcess { get; init; }
+
     public bool EditInsertUnnamed { get; init; }
 
     public bool EditRemoveUnnamed { get; init; }
@@ -62,6 +68,12 @@ internal sealed class ParsedCommand
 
     public string? VfsPath { get; init; }
 
+    public string? StorageName { get; init; }
+
+    public string? ResourcePath { get; init; }
+
+    public bool AttachToRoot { get; init; }
+
     public string? ErrorMessage { get; init; }
 }
 
@@ -90,6 +102,84 @@ internal static class CommandParser
             string.Equals(args[1], "--nodes", StringComparison.OrdinalIgnoreCase))
         {
             return new ParsedCommand { ShowNodeHelp = true };
+        }
+
+        if (args.Length == 3 &&
+            string.Equals(args[0], "--create", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--pack", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(args[2])
+                ? new ParsedCommand { ErrorMessage = "PackID cannot be empty." }
+                : new ParsedCommand { CreatePack = true, PackId = args[2] };
+        }
+
+        if (args.Length >= 3 &&
+            string.Equals(args[0], "--create", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--pack", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryParsePackOptions(args, 3, out var storageName, out var resourcePath, out var optionError))
+            {
+                return new ParsedCommand { ErrorMessage = optionError };
+            }
+
+            return string.IsNullOrWhiteSpace(args[2])
+                ? new ParsedCommand { ErrorMessage = "PackID cannot be empty." }
+                : new ParsedCommand
+                {
+                    CreatePack = true,
+                    PackId = args[2],
+                    StorageName = storageName,
+                    ResourcePath = resourcePath
+                };
+        }
+
+        if (args.Length >= 4 &&
+            string.Equals(args[0], "--create", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--process", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryParseProcessOptions(args, 4, out var attachToRoot, out var processError))
+            {
+                return new ParsedCommand { ErrorMessage = processError };
+            }
+
+            return HasBlank(args[2], args[3])
+                ? new ParsedCommand { ErrorMessage = "--create --process requires <packid> <processid>." }
+                : new ParsedCommand
+                {
+                    CreateProcess = true,
+                    PackId = args[2],
+                    TargetId = args[3],
+                    AttachToRoot = attachToRoot
+                };
+        }
+
+        if (args.Length == 3 &&
+            string.Equals(args[0], "--register", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--pack", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(args[2])
+                ? new ParsedCommand { ErrorMessage = "PackID cannot be empty." }
+                : new ParsedCommand { RegisterPack = true, PackId = args[2] };
+        }
+
+        if (args.Length >= 3 &&
+            string.Equals(args[0], "--register", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(args[1], "--pack", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryParsePackOptions(args, 3, out var storageName, out var resourcePath, out var optionError))
+            {
+                return new ParsedCommand { ErrorMessage = optionError };
+            }
+
+            return string.IsNullOrWhiteSpace(args[2])
+                ? new ParsedCommand { ErrorMessage = "PackID cannot be empty." }
+                : new ParsedCommand
+                {
+                    RegisterPack = true,
+                    PackId = args[2],
+                    StorageName = storageName,
+                    ResourcePath = resourcePath
+                };
         }
 
         if (args.Length == 3 &&
@@ -406,6 +496,85 @@ internal static class CommandParser
 
     private static bool HasBlank(params string[] values) =>
         values.Any(string.IsNullOrWhiteSpace);
+
+    private static bool TryParsePackOptions(
+        string[] args,
+        int baseArgumentCount,
+        out string? storageName,
+        out string? resourcePath,
+        out string? errorMessage)
+    {
+        storageName = null;
+        resourcePath = null;
+        errorMessage = null;
+
+        if (args.Length == baseArgumentCount)
+        {
+            return true;
+        }
+
+        if ((args.Length - baseArgumentCount) % 2 != 0)
+        {
+            errorMessage = "Pack options must be passed as flag/value pairs.";
+            return false;
+        }
+
+        for (var i = baseArgumentCount; i < args.Length; i += 2)
+        {
+            var flag = args[i];
+            var rawValue = args[i + 1];
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                errorMessage = $"{flag} cannot be empty.";
+                return false;
+            }
+
+            switch (flag)
+            {
+                case "--storage":
+                    storageName = rawValue;
+                    break;
+                case "--path":
+                    resourcePath = rawValue;
+                    break;
+                default:
+                    errorMessage = $"Unsupported option: {flag}";
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryParseProcessOptions(
+        string[] args,
+        int baseArgumentCount,
+        out bool attachToRoot,
+        out string? errorMessage)
+    {
+        attachToRoot = false;
+        errorMessage = null;
+
+        if (args.Length == baseArgumentCount)
+        {
+            return true;
+        }
+
+        for (var i = baseArgumentCount; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--attach-root":
+                    attachToRoot = true;
+                    break;
+                default:
+                    errorMessage = $"Unsupported option: {args[i]}";
+                    return false;
+            }
+        }
+
+        return true;
+    }
 
     private static bool TryParsePortOptions(
         string[] args,

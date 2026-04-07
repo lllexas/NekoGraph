@@ -26,7 +26,7 @@ public class SocialMsgContentNodeStrategy : NodeStrategy
 
     private void Propagate(SocialMsgContentNodeData node, SignalContext context, BasePackData pack)
     {
-        EnqueueSignals(pack, node.OutputConnections, context);
+        EnqueueSignals(pack, node.Out, context);
     }
 
     public class SocialBodyEvent
@@ -61,7 +61,7 @@ public class ChoiceTextNodeStrategy : NodeStrategy
 
     private void Propagate(ChoiceTextNodeData node, SignalContext context, BasePackData pack)
     {
-        EnqueueSignals(pack, node.OutputConnections, context);
+        EnqueueSignals(pack, node.Out, context);
     }
 
     public class SocialOptionEvent

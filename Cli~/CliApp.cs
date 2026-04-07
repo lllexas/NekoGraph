@@ -24,6 +24,21 @@ internal static class CliApp
             return 0;
         }
 
+        if (command.CreatePack)
+        {
+            return PackScaffoldCommand.ExecuteCreate(command.PackId!, command.StorageName, command.ResourcePath);
+        }
+
+        if (command.RegisterPack)
+        {
+            return PackScaffoldCommand.ExecuteRegister(command.PackId!, command.StorageName, command.ResourcePath);
+        }
+
+        if (command.CreateProcess)
+        {
+            return PackScaffoldCommand.ExecuteCreateProcess(command.PackId!, command.TargetId!, command.AttachToRoot);
+        }
+
         if (command.RunFull)
         {
             return RunFullCommand.Execute(command.PackId!);

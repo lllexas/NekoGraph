@@ -241,6 +241,20 @@ internal static class HelpText
         命令参考
         ═══════════════════════════════════════════════════════════════
 
+        --create --pack <packid> [--storage Resources|StreamingAssets] [--path <resource-path>]
+            创建一个最小合法 Pack 文件，内含 Root 节点与空侧链。
+            默认创建到 Assets/Resources/NekoGraph/Packs/<packid>.json。
+            注意：此命令只创建文件，不会自动写入 MetaLib。
+
+        --register --pack <packid> [--storage Resources|StreamingAssets] [--path <resource-path>]
+            将现有 Pack 注册到 MetaLib.json。
+            若未提供 --path，则按 packid 在仓库内唯一匹配现有文件。
+
+        --create --process <packid> <processid> [--attach-root]
+            创建一个最小 process 套组：Spine + Leaf-A + Leaf-B。
+            默认不连线；若带 --attach-root，则把 Root 直连到新 Spine。
+            注意：会检查 processid 是否已被现有具名节点占用。
+
         --run --full <packid>
             输出完整运行报告：信号路径、所有阻塞点、结构异常。
             改动任何 Pack 前请先执行此命令，了解当前执行语义。
@@ -344,6 +358,9 @@ internal static class HelpText
           nekograph-cli --version
           nekograph-cli --help
           nekograph-cli --help --nodes       ← 查看节点类型详细说明
+          nekograph-cli --create --pack <packid> [--storage Resources|StreamingAssets] [--path <resource-path>]
+          nekograph-cli --create --process <packid> <processid> [--attach-root]
+          nekograph-cli --register --pack <packid> [--storage Resources|StreamingAssets] [--path <resource-path>]
           nekograph-cli --run --full <packid>
           nekograph-cli --show --node <packid> <node-ref>
           nekograph-cli --show --process <packid> <processid>
