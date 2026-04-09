@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,12 +12,15 @@ using UnityEngine;
 /// - 方法可定义在任意程序集的任意类中，无需显式注册
 /// - 同时提供 Register() 手动注册 API 供程序化使用
 ///
-/// 处理器方法签名规范：
+/// 处理器方法签名规范（推荐）：
+///   public static void MyHandler(VFSResolvedContent content, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+///
+/// 兼容旧签名：
 ///   public static void MyHandler(string dataJson, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
 ///
 /// 与 CommandRegistry 的对称设计：
 ///   CommandHandlerWithOutput: (IConsoleController, int, string[], object) → CommandOutput
-///   EXEHandlerDelegate:       (string dataJson, SignalContext, BasePackData, GraphRunner, string) → void
+///   EXEHandlerDelegate:       (VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string) → void
 /// </summary>
 public static class ExeRegistry
 {
@@ -27,10 +30,11 @@ public static class ExeRegistry
 
     /// <summary>
     /// EXE 处理器委托喵~
-    /// dataJson: VFSNodeData.DataJson 原始字符串，处理器自行反序列化
+    /// content: VFS 统一解析载荷，兼容文本和 Unity 引用。
+    /// 返回 HandleResult 控制 VFSNodeStrategy 是否继续传播信号喵~
     /// </summary>
-    public delegate void EXEHandlerDelegate(
-        string dataJson,
+    public delegate HandleResult EXEHandlerDelegate(
+        VFSResolvedContent content,
         SignalContext context,
         BasePackData pack,
         GraphRunner runner,
@@ -73,23 +77,54 @@ public static class ExeRegistry
 
             var parameters = method.GetParameters();
             if (parameters.Length == 5 &&
-                parameters[0].ParameterType == typeof(string) &&
                 parameters[1].ParameterType == typeof(SignalContext) &&
                 parameters[2].ParameterType == typeof(BasePackData) &&
                 parameters[3].ParameterType == typeof(GraphRunner) &&
                 parameters[4].ParameterType == typeof(string) &&
-                method.ReturnType == typeof(void))
+                (method.ReturnType == typeof(HandleResult) || method.ReturnType == typeof(void)))
             {
                 var suffix = NormalizeSuffix(attr.Suffix);
-                var handler = (EXEHandlerDelegate)Delegate.CreateDelegate(typeof(EXEHandlerDelegate), method);
-                _handlers[suffix] = handler;
+                if (parameters[0].ParameterType == typeof(VFSResolvedContent))
+                {
+                    if (method.ReturnType == typeof(HandleResult))
+                    {
+                        var handler = (EXEHandlerDelegate)Delegate.CreateDelegate(typeof(EXEHandlerDelegate), method);
+                        _handlers[suffix] = handler;
+                    }
+                    else // void 返回值，包装为返回 HandleResult.Push
+                    {
+                        var legacyHandler = (Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>)
+                            Delegate.CreateDelegate(typeof(Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>), method);
+                        _handlers[suffix] = (content, context, pack, runner, packInstanceID) =>
+                        {
+                            legacyHandler(content, context, pack, runner, packInstanceID);
+                            return HandleResult.Push;
+                        };
+                    }
+                }
+                else if (parameters[0].ParameterType == typeof(string))
+                {
+                    var legacyHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string>)
+                        Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string>), method);
+                    _handlers[suffix] = (content, context, pack, runner, packInstanceID) =>
+                    {
+                        legacyHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID);
+                        return HandleResult.Push;
+                    };
+                }
+                else
+                {
+                    Debug.LogWarning($"[ExeRegistry] 方法 {method.DeclaringType?.Name}.{method.Name} 第一个参数必须是 VFSResolvedContent 或 string，已跳过喵~");
+                    continue;
+                }
+
                 if (attr.DataType != null)
                     _handlerTypes[suffix] = attr.DataType;
             }
             else
             {
                 Debug.LogWarning($"[ExeRegistry] 方法 {method.DeclaringType?.Name}.{method.Name} 签名不符合规范，已跳过喵~\n" +
-                    "要求: (string dataJson, SignalContext, BasePackData, GraphRunner, string) → void");
+                    "要求: (VFSResolvedContent|string, SignalContext, BasePackData, GraphRunner, string) → HandleResult|void");
             }
         }
 
@@ -131,7 +166,7 @@ public static class ExeRegistry
     }
 
     /// <summary>
-    /// 获取后缀对应的 DataJson 数据类型（供编辑器字段提示用）喵~
+    /// 获取后缀对应的内容数据类型（供编辑器字段提示用）喵~
     /// 若未注册或未声明 DataType 则返回 null。
     /// </summary>
     public static Type GetDataType(string suffix)

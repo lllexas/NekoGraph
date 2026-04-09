@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -24,17 +24,20 @@ public class VFSNodeStrategy : NodeStrategy
         if (data is not VFSNodeData vfsNode) return;
 
         // 文件节点：查 ExeRegistry 执行对应后缀的处理器喵~
+        var result = HandleResult.Push; // 默认继续传播
         if (vfsNode.IsFile && vfsNode.IsEnabled)
         {
             if (ExeRegistry.TryGetHandler(vfsNode.Extension, out var handler))
             {
                 try
                 {
-                    handler.Invoke(vfsNode.DataJson, context, pack, runner, packInstanceID);
+                    var content = VFSContentResolver.Resolve(vfsNode);
+                    result = handler.Invoke(content, context, pack, runner, packInstanceID);
                 }
                 catch (Exception e)
                 {
                     Debug.LogError($"[VFSNodeStrategy] 执行后缀 '{vfsNode.Extension}' 的处理器失败：{e.Message} 喵~");
+                    result = HandleResult.Error;
                 }
             }
             else if (runner.EnableDebugLog)
@@ -43,8 +46,13 @@ public class VFSNodeStrategy : NodeStrategy
             }
         }
 
-        // 运行时只认 VFS 的语义输出字段 ChildNodeIDs
-        EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
+        // 根据 Handle 返回值决定是否传播信号喵~
+        if (result == HandleResult.Push)
+        {
+            EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
+        }
+        // HandleResult.Nope: Handle 自行通过 runner.InjectSignal 传递信号
+        // HandleResult.Error: 已记录错误，不传播信号
     }
 
     public override void OnEvent(
