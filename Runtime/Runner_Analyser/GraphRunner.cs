@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 // ═══════════════════════════════════════════════════════════════
 // GraphRunner - 图执行器喵~ 💓
 // ═══════════════════════════════════════════════════════════════
@@ -457,4 +460,6 @@ public class GraphRunner
 
         return info.ToString();
     }
+}
+
 }

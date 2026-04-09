@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// TriggerNode 策略 - 响应式监听与信号传导喵！
 /// 职责：管理基于 PostSystem 的订阅生命周期，并将 Payload 注入 SignalContext 喵~
@@ -92,4 +95,6 @@ public class TriggerNodeStrategy : NodeStrategy
             _instanceToTriggers.Remove(packID);
         }
     }
+}
+
 }

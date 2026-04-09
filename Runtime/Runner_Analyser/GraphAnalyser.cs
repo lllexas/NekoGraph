@@ -283,7 +283,17 @@ public class GraphAnalyser
 
         if (existing is VFSNodeData existingVfs)
         {
+            existingVfs.InlineText = content;
             existingVfs.DataJson = content;
+            existingVfs.ContentSource = VFSContentSource.Inline;
+            existingVfs.ReferencePath = "";
+            existingVfs.AssetGuid = "";
+            existingVfs.AssetPath = "";
+            existingVfs.UnityObjectTypeName = "";
+            if (string.Equals(existingVfs.Extension, ".csv", StringComparison.OrdinalIgnoreCase))
+                existingVfs.ContentKind = VFSContentKind.Csv;
+            else if (existingVfs.ContentKind == VFSContentKind.UnityObject)
+                existingVfs.ContentKind = VFSContentKind.Json;
             return true;
         }
         if (existing != null) return false; // 目录，不能直接写
@@ -309,7 +319,16 @@ public class GraphAnalyser
             NodeID = "vfs_" + Guid.NewGuid().ToString("N").Substring(0, 8),
             Name = dot > 0 ? fileName.Substring(0, dot) : fileName,
             Extension = dot > 0 ? fileName.Substring(dot) : "",
+            InlineText = content,
             DataJson = content,
+            ContentSource = VFSContentSource.Inline,
+            ReferencePath = "",
+            AssetGuid = "",
+            AssetPath = "",
+            UnityObjectTypeName = "",
+            ContentKind = dot > 0 && string.Equals(fileName.Substring(dot), ".csv", StringComparison.OrdinalIgnoreCase)
+                ? VFSContentKind.Csv
+                : VFSContentKind.Json,
             IsEnabled = true
         };
 

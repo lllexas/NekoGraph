@@ -1,9 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using NekoGraph;
 
+namespace NekoGraph
+{
+     
 /// <summary>
 /// 节点策略抽象基类 - 提取公共逻辑喵~
 /// </summary>
@@ -15,13 +17,23 @@ public abstract class NodeStrategy
     /// </summary>
     protected void EnqueueSignal(BasePackData pack, string targetNodeId, SignalContext context)
     {
+        EnqueueSignal(pack, context.CurrentNodeId, targetNodeId, context);
+    }
+
+    /// <summary>
+    /// 从指定源节点注入信号到目标节点喵~
+    /// 用于事件回调等逻辑来源不等于 CurrentNodeId 的情况。
+    /// </summary>
+    protected void EnqueueSignal(BasePackData pack, string sourceNodeId, string targetNodeId, SignalContext context)
+    {
         // 标记当前节点已被信号检查喵~
         if (pack.Nodes.TryGetValue(context.CurrentNodeId, out var currentNode))
         {
             currentNode.IsChecked = true;
         }
 
-        var newSignal = context.Clone();
+        var newSignal = context.Clone(copyPath: true);
+        newSignal.RecordConnection(new ConnectionData(sourceNodeId, -1, targetNodeId, -1));
         newSignal.CurrentNodeId = targetNodeId;
         pack.ActiveSignals.Enqueue(newSignal);
     }
@@ -93,6 +105,7 @@ public static class NodeStrategyFactory
         Register<MissionNode_R_Data>(new MissionNodeRStrategy());
         Register<CommandNodeData>(new CommandNodeStrategy());
         Register<TriggerNodeData>(TriggerNodeStrategy.Instance);
+        Register<PostEventNodeData>(PostEventNodeStrategy.Instance);
         Register<SocialMsgContentNodeData>(new SocialMsgContentNodeStrategy());
         Register<ChoiceTextNodeData>(new ChoiceTextNodeStrategy());
         Register<SocialMsgEndNodeData>(new SocialMsgEndNodeStrategy());
@@ -133,4 +146,6 @@ public static class NodeStrategyFactory
     {
         _strategyMap.Clear();
     }
+}
+
 }

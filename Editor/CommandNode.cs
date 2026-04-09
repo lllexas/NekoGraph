@@ -117,6 +117,14 @@ public class CommandNode : BaseNode<CommandNodeData>
 
         extensionContainer.Add(foldout);
 
+        // 初始化：如果 CommandName 为空，自动选中第一个命令喵~
+        if (string.IsNullOrEmpty(TypedData.Command.CommandName) && commandChoices.Count > 0)
+        {
+            string firstCommandName = CommandRegistryInfo.GetCommandNameFromDisplayName(commandChoices[0]);
+            TypedData.Command.CommandName = firstCommandName;
+            _commandDropdown.SetValueWithoutNotify(commandChoices[0]);
+        }
+
         // 初始化
         RebuildParamFields();
         RefreshExpandedState();

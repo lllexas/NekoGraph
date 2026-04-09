@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 // =========================================================
 // 基础流程节点策略 - Root/Spine/Leaf 节点处理器喵~
 // =========================================================
@@ -33,8 +36,16 @@ public class RootNodeStrategy : NodeStrategy
 /// <summary>
 /// Spine 节点策略 - 流程的逻辑骨架/无线输电继电器喵~
 /// </summary>
+ [Serializable]
+internal sealed class SpineCallbackPayload
+{
+    public string SourceLeafNodeID;
+}
+
 public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
 {
+    private readonly Dictionary<string, Action<object>> _callbackListeners = new Dictionary<string, Action<object>>();
+
     public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
     {
         if (data is not SpineNodeData spineNode) return;
@@ -47,8 +58,8 @@ public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
         // 1. 激活关联的 Leaf A 节点
         ActivateLeafNodes(spineNode, context, pack, runner);
 
-        // 2. 向下一个 Spine 节点传播信号
-        PropagateToNextSpine(spineNode, context, pack);
+        // 2. Spine 本身成为阻塞点，等待对应 Leaf B 的回调事件再放行下一个 Spine
+        RegisterLeafBCallback(spineNode, context, pack, runner);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
@@ -80,10 +91,42 @@ public class SpineNodeStrategy : NodeStrategy, IBlockingNodeStrategy
         }
     }
 
-    private void PropagateToNextSpine(SpineNodeData node, SignalContext context, BasePackData pack)
+    private void RegisterLeafBCallback(SpineNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
     {
-        // 运行时只认 Spine 的语义输出字段 NextSpineNodeIDs
-        EnqueueSignals(pack, node.NextSpineNodeIDs, context);
+        if (_callbackListeners.ContainsKey(node.NodeID))
+            return;
+
+        string eventName = BuildSpineCallbackEventName(pack, node.ProcessID);
+        Action<object> callback = null;
+        callback = payload =>
+        {
+            PostSystem.Instance.Off(eventName, callback);
+            _callbackListeners.Remove(node.NodeID);
+
+            if (runner != null && runner.EnableDebugLog)
+            {
+                Debug.Log($"[SpineNode] 收到 Leaf B 回调，放行下一个 Spine：{node.NodeID} (ProcessID: {node.ProcessID})");
+            }
+
+            string sourceLeafNodeId = (payload as SpineCallbackPayload)?.SourceLeafNodeID ?? context.CurrentNodeId;
+            foreach (var nextSpineNodeId in node.NextSpineNodeIDs)
+            {
+                EnqueueSignal(pack, sourceLeafNodeId, nextSpineNodeId, context);
+            }
+        };
+
+        PostSystem.Instance.On(eventName, callback);
+        _callbackListeners[node.NodeID] = callback;
+
+        if (runner != null && runner.EnableDebugLog)
+        {
+            Debug.Log($"[SpineNode] 已注册 Leaf B 回调监听：{eventName}");
+        }
+    }
+
+    private static string BuildSpineCallbackEventName(BasePackData pack, string processId)
+    {
+        return $"spine.{pack.PackID}.{processId}";
     }
 
     // =========================================================
@@ -160,11 +203,8 @@ public class LeafNodeAStrategy : NodeStrategy
             Debug.Log($"[LeafNode A] 执行演出：{leafNode.NodeID} (ProcessID: {leafNode.ProcessID})");
         }
 
-        // 运行时只认 Leaf A 的语义输出字段 OutputNodeIds
+        // Leaf A 只负责把信号送入本阶段业务链，Leaf B 必须由业务链显式到达
         EnqueueSignals(pack, leafNode.OutputNodeIds, context);
-
-        // 同时通知对应的 Leaf B 节点（通过 pack.Nodes 查找）
-        NotifyLeafB(leafNode, context, pack, runner);
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
@@ -172,22 +212,6 @@ public class LeafNodeAStrategy : NodeStrategy
         // Leaf A 节点通常不直接响应外部事件
     }
 
-    private void NotifyLeafB(LeafNode_A_Data node, SignalContext context, BasePackData pack, GraphRunner runner)
-    {
-        // 查找对应的 Leaf B 节点（共享 ProcessID）
-        foreach (var leafBKvp in pack.Nodes)
-        {
-            if (leafBKvp.Value is LeafNode_B_Data leafB && leafB.ProcessID == node.ProcessID)
-            {
-                if (runner != null && runner.EnableDebugLog)
-                {
-                    Debug.Log($"[LeafNode A] 通知 Leaf B: {leafB.NodeID}");
-                }
-
-                EnqueueSignal(pack, leafB.NodeID, context);
-            }
-        }
-    }
 }
 
 /// <summary>
@@ -204,12 +228,29 @@ public class LeafNodeBStrategy : NodeStrategy
             Debug.Log($"[LeafNode B] 执行回调：{leafNode.NodeID} (ProcessID: {leafNode.ProcessID})");
         }
 
-        // 运行时只认 Leaf B 的语义输出字段 OutputNodeIds
-        EnqueueSignals(pack, leafNode.OutputNodeIds, context);
+        string callbackEventName = BuildSpineCallbackEventName(pack, leafNode.ProcessID);
+        PostSystem.Instance.Send(callbackEventName, new SpineCallbackPayload
+        {
+            SourceLeafNodeID = leafNode.NodeID
+        });
+
+        if (runner.EnableDebugLog)
+        {
+            Debug.Log($"[LeafNode B] 已发送 Spine 回调事件：{callbackEventName}");
+        }
+
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
     {
         // Leaf B 节点通常不直接响应外部事件
     }
+
+    private static string BuildSpineCallbackEventName(BasePackData pack, string processId)
+    {
+        return $"spine.{pack.PackID}.{processId}";
+    }
+
+}
+
 }

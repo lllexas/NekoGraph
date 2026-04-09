@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,38 +9,42 @@ using UnityEngine.UIElements;
 using NekoGraph;
 
 /// <summary>
-/// 监听器节点 - 事件分发中心喵！
-/// 基于 TriggerEvent 枚举和 [TriggerEventInfo] 特性自动生成界面喵~
-/// 
+/// PostOffice 发送节点 - 在流程图任意环节发送 TriggerEvent 事件喵~
+///
+/// 策划可以在右键菜单中找到：📮 发送事件 (Post)
+/// 选择后可以在双级下拉菜单中选择任意已注册的事件（包括枚举和特性定义的）喵~
+///
 /// 【双级下拉菜单重构版】
 /// 先选分类，再选事件，用户体验更佳喵~
 /// </summary>
-[NodeMenuItem("🔔 事件监听器 (Trigger)", typeof(TriggerNodeData))]
+[NodeMenuItem("📮 发送事件 (Post)", typeof(PostEventNodeData))]
 [NodeType(NodeSystem.Common)]
-public class TriggerNode : BaseNode<TriggerNodeData>
+public class PostEventNode : BaseNode<PostEventNodeData>
 {
     private PopupField<string> _categoryDropdown;      // 分类选择下拉框喵~
     private PopupField<string> _eventDropdown;         // 事件选择下拉框喵~
     private Label _protocolLabel;
+    private TextField _payloadField;
+    private VisualElement _payloadContainer;
 
-    public TriggerNode() : base()
+    public PostEventNode() : base()
     {
         InitializeUI();
     }
 
-    public TriggerNode(TriggerNodeData data) : base(data)
+    public PostEventNode(PostEventNodeData data) : base(data)
     {
         InitializeUI();
     }
 
     private void InitializeUI()
     {
-        title = "🔔 事件监听器";
-        titleContainer.style.backgroundColor = new Color(0.4f, 0.2f, 0.5f);
+        title = "📮 发送事件";
+        titleContainer.style.backgroundColor = new Color(0.6f, 0.3f, 0.6f); // 紫色系
         style.width = 280;
 
         // --- 配置区域 ---
-        var foldout = new Foldout() { text = "事件契约配置", value = true };
+        var foldout = new Foldout() { text = "事件配置", value = true };
 
         // 1. 获取所有分类和当前事件的分类喵~
         var categories = TriggerRegistryInfo.GetAllCategories();
@@ -98,11 +102,12 @@ public class TriggerNode : BaseNode<TriggerNodeData>
             string eventName = TriggerRegistryInfo.GetEventNameFromDisplayName(evt.newValue);
             TypedData.SetEventName(eventName);
             
-            // 更新协议显示
+            // 更新协议显示和 Payload 输入框
             var meta = TypedData.GetMeta();
             if (meta != null)
             {
                 UpdateProtocolUI(meta);
+                RebuildPayloadField(meta);
             }
         });
         foldout.Add(_eventDropdown);
@@ -115,11 +120,19 @@ public class TriggerNode : BaseNode<TriggerNodeData>
         _protocolLabel.style.whiteSpace = WhiteSpace.Normal;
         foldout.Add(_protocolLabel);
 
+        // 5. Payload 输入区域喵~
+        _payloadContainer = new VisualElement();
+        foldout.Add(_payloadContainer);
+
         extensionContainer.Add(foldout);
 
-        // 初始化协议显示喵~
+        // 初始化协议显示和 Payload 输入框喵~
         var currentMeta = TypedData.GetMeta();
-        if (currentMeta != null) UpdateProtocolUI(currentMeta);
+        if (currentMeta != null)
+        {
+            UpdateProtocolUI(currentMeta);
+            RebuildPayloadField(currentMeta);
+        }
 
         RefreshExpandedState();
     }
@@ -146,20 +159,112 @@ public class TriggerNode : BaseNode<TriggerNodeData>
             // 使用 SetValueWithoutNotify 避免触发 ValueChangedCallback 导致重复刷新喵~
             _eventDropdown.SetValueWithoutNotify(eventChoices[0]);
             
-            // 更新协议显示
+            // 更新协议显示和 Payload 输入框
             var meta = TypedData.GetMeta();
             if (meta != null)
             {
                 UpdateProtocolUI(meta);
+                RebuildPayloadField(meta);
             }
         }
     }
 
+    /// <summary>
+    /// 更新协议显示信息喵~
+    /// </summary>
     private void UpdateProtocolUI(TriggerRegistry.TriggerMeta meta)
     {
-        _protocolLabel.text = $"📜 协议：{meta.Info.Protocol}\nℹ️ {meta.Info.Tooltip ?? "监听指定全局事件，并转发携带的数据包喵~"}";
+        _protocolLabel.text = $"📜 协议：{meta.Info.Protocol}\nℹ️ {meta.Info.Tooltip ?? "在流程中发送指定全局事件喵~"}";
     }
 
-    public override void UpdateData() { }
+    /// <summary>
+    /// 根据协议重建 Payload 输入框喵~
+    /// </summary>
+    private void RebuildPayloadField(TriggerRegistry.TriggerMeta meta)
+    {
+        _payloadContainer.Clear();
+        _payloadField = null;
+
+        // None 协议不需要 Payload 输入喵~
+        if (meta.Info.Protocol == EventProtocol.None)
+        {
+            var infoLabel = new Label("ℹ️ 此事件不需要参数");
+            infoLabel.style.fontSize = 9;
+            infoLabel.style.color = new Color(0.7f, 0.7f, 0.7f);
+            _payloadContainer.Add(infoLabel);
+            return;
+        }
+
+        // Entity 协议需要特殊处理喵~
+        if (meta.Info.Protocol == EventProtocol.Entity)
+        {
+            var infoLabel = new Label("ℹ️ Entity 类型事件将从上游节点自动获取 Payload");
+            infoLabel.style.fontSize = 9;
+            infoLabel.style.color = new Color(1f, 1f, 0.3f);
+            _payloadContainer.Add(infoLabel);
+            return;
+        }
+
+        // 其他协议创建文本输入框喵~
+        var field = new TextField("参数值")
+        {
+            value = TypedData.PayloadValue ?? "",
+            tooltip = GetProtocolTooltip(meta.Info.Protocol)
+        };
+
+        field.RegisterValueChangedCallback(evt =>
+        {
+            TypedData.PayloadValue = evt.newValue;
+        });
+
+        _payloadField = field;
+        _payloadContainer.Add(field);
+
+        // 添加示例提示喵~
+        var exampleLabel = new Label(GetProtocolExample(meta.Info.Protocol));
+        exampleLabel.style.fontSize = 8;
+        exampleLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
+        exampleLabel.style.marginTop = 2;
+        _payloadContainer.Add(exampleLabel);
+    }
+
+    /// <summary>
+    /// 获取协议提示信息喵~
+    /// </summary>
+    private string GetProtocolTooltip(EventProtocol protocol)
+    {
+        switch (protocol)
+        {
+            case EventProtocol.Numeric: return "请输入数值（整数或小数）喵~";
+            case EventProtocol.String: return "请输入字符串喵~";
+            case EventProtocol.Boolean: return "请输入 True 或 False 喵~";
+            case EventProtocol.Vector: return "请输入格式：x,y,z（如：1.5,0,3.0）喵~";
+            default: return "";
+        }
+    }
+
+    /// <summary>
+    /// 获取协议示例喵~
+    /// </summary>
+    private string GetProtocolExample(EventProtocol protocol)
+    {
+        switch (protocol)
+        {
+            case EventProtocol.Numeric: return "示例：42 或 3.14";
+            case EventProtocol.String: return "示例：Mission_001";
+            case EventProtocol.Boolean: return "示例：True 或 False";
+            case EventProtocol.Vector: return "示例：1.5,0,3.0";
+            default: return "";
+        }
+    }
+
+    public override void UpdateData()
+    {
+        // 数据已经在回调中实时更新
+        if (_payloadField != null)
+        {
+            TypedData.PayloadValue = _payloadField.value;
+        }
+    }
 }
 #endif

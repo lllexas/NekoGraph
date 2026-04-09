@@ -1,6 +1,8 @@
 ﻿using System;
 using UnityEngine;
-using NekoGraph;
+
+namespace NekoGraph
+{
 
 /// <summary>
 /// 正文发射器策略 - 广播内容后直接通过信号喵~
@@ -85,4 +87,6 @@ public class SocialMsgEndNodeStrategy : NodeStrategy
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+}
+
 }

@@ -798,6 +798,11 @@ internal static class EditUnnamedCommand
             return [];
         }
 
+        if (string.Equals(GetTypeName(nodeObject), "LeafNode_B_Data", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
         var result = new List<string>();
         AppendArrayStrings(nodeObject["_"], result);
         AppendArrayStrings(nodeObject["SignalOutputs"], result);

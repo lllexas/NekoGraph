@@ -121,6 +121,11 @@ internal static class BridgeQuery
             return [];
         }
 
+        if (string.Equals(GetTypeName(nodeObject), "LeafNode_B_Data", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
         var result = new List<BridgeEdge>();
         AppendArrayEdges(nodeObject["_"], result, 0, 0);
         AppendArrayEdges(nodeObject["SignalOutputs"], result, 0, 0);

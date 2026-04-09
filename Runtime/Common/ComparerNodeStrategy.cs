@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using NekoGraph;
+
+namespace NekoGraph
+{
 
 /// <summary>
 /// ComparerNode 策略 - 逻辑判断与信号调度中心喵~
@@ -126,8 +128,6 @@ public class ComparerNodeStrategy : NodeStrategy
                 return spineNode.NextSpineNodeIDs != null ? spineNode.NextSpineNodeIDs : Array.Empty<string>();
             case LeafNode_A_Data leafNodeA:
                 return leafNodeA.OutputNodeIds != null ? leafNodeA.OutputNodeIds : Array.Empty<string>();
-            case LeafNode_B_Data leafNodeB:
-                return leafNodeB.OutputNodeIds != null ? leafNodeB.OutputNodeIds : Array.Empty<string>();
             case CommandNodeData commandNode:
                 return commandNode.OutputNodeIDs != null ? commandNode.OutputNodeIDs : Array.Empty<string>();
             case TriggerNodeData triggerNode:
@@ -161,4 +161,6 @@ public class ComparerNodeStrategy : NodeStrategy
     }
 
     public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+}
+
 }

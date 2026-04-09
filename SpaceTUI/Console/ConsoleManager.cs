@@ -577,7 +577,7 @@ namespace SpaceTUI
         {
             var existing = analyser.GetNode(redirectPackID, fullPath, _subjectLevel);
             if (existing is VFSNodeData existingVfs)
-                content = existingVfs.DataJson + "\n" + content;
+                content = existingVfs.GetInlineText() + "\n" + content;
         }
 
         if (analyser.WriteFile(redirectPackID, fullPath, content, _subjectLevel))

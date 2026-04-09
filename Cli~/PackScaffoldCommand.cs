@@ -607,7 +607,7 @@ internal static class PackScaffoldCommand
         {
             ["$type"] = "LeafNode_B_Data, NekoGraph.Runtime",
             ["ProcessID"] = processId,
-            ["OutputNodeIds"] = new JsonArray(),
+            ["InputNodeIDs"] = new JsonArray(),
             ["NodeID"] = nodeId,
             ["Name"] = $"LeafB:{processId}",
             ["EditorPosition"] = CreateEditorPosition(x, y),

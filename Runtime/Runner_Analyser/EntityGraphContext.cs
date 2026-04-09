@@ -1,5 +1,8 @@
 ﻿using System.Collections.Generic;
 
+namespace NekoGraph
+{
+
 // ═══════════════════════════════════════════════════════════════
 // EntityGraphContext - 执行上下文喵~ 📋
 // ═══════════════════════════════════════════════════════════════
@@ -62,4 +65,6 @@ public class EntityGraphContext
         Analyser.SetPackDataDict(PackDataDict);
         Runner.SetPackDataDict(PackDataDict);
     }
+}
+
 }

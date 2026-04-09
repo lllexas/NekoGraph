@@ -81,7 +81,7 @@ internal static class PackDocumentLoader
                 var nodeId = nodeObject["NodeID"]?.GetValue<string>() ?? kvp.Key;
                 var typeName = NormalizeTypeName(nodeObject["$type"]?.GetValue<string>());
                 var displayName = nodeObject["Name"]?.GetValue<string>() ?? nodeId;
-                var outgoing = ReadOutgoing(nodeObject);
+                var outgoing = ReadOutgoing(nodeObject, typeName);
                 var triggerEvent = ReadTriggerEvent(nodeObject["Event"]);
                 var commandName = nodeObject["Command"]?["CommandName"]?.GetValue<string>();
                 var processId = nodeObject["ProcessID"]?.GetValue<string>();
@@ -149,8 +149,13 @@ internal static class PackDocumentLoader
         return lastDot >= 0 ? firstSegment[(lastDot + 1)..] : firstSegment;
     }
 
-    private static List<string> ReadOutgoing(JsonObject nodeObject)
+    private static List<string> ReadOutgoing(JsonObject nodeObject, string typeName)
     {
+        if (string.Equals(typeName, "LeafNode_B_Data", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
         var result = new List<string>();
 
         AppendConnectionTargets(nodeObject["OutputConnections"], result);

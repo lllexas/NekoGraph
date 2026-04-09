@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 // =========================================================
 // 命令节点策略喵~
 // =========================================================
@@ -23,7 +26,7 @@ public class CommandNodeStrategy : NodeStrategy
             Debug.Log($"[CommandNode] 执行命令：{commandNode.Command.CommandName}");
         }
 
-        ExecuteCommand(commandNode, context, pack, runner);
+        ExecuteCommand(commandNode, context, pack, runner, packInstanceID);
         PropagateSignal(commandNode, context, pack);
     }
 
@@ -32,7 +35,7 @@ public class CommandNodeStrategy : NodeStrategy
         // 命令节点通常不直接响应外部事件
     }
 
-    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
+    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
     {
         var command = node.Command;
 
@@ -47,7 +50,14 @@ public class CommandNodeStrategy : NodeStrategy
         try
         {
             int subjectLevel = runner?.GetSubjectLevel() ?? PackAccessSubjects.Player;
-            var output = CommandRegistry.Execute(command.CommandName, subjectLevel, args, context.Args, null);
+            var consoleContext = new GraphCommandConsoleContext(
+                pack,
+                packInstanceID,
+                node,
+                command.CommandName,
+                subjectLevel,
+                context);
+            var output = CommandRegistry.Execute(command.CommandName, subjectLevel, args, context.Args, consoleContext);
 
             if (output.Payload != null)
             {
@@ -107,4 +117,6 @@ public class CommandNodeStrategy : NodeStrategy
         // 运行时只认 CommandNode 的语义输出字段 OutputNodeIDs
         EnqueueSignals(pack, node.OutputNodeIDs, context);
     }
+}
+
 }

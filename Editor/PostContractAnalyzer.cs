@@ -9,6 +9,10 @@ using UnityEngine;
 /// <summary>
 /// 【NekoGraph 静态分析器】
 /// 职责：在编辑器中静态扫描代码，强制执行"邮局契约"喵！
+/// 
+/// 支持扫描两种来源的事件：
+/// 1. TriggerEvent 枚举定义的事件
+/// 2. [TriggerEventInfo] 特性定义的事件
 /// </summary>
 public class PostContractAnalyzer : AssetPostprocessor
 {
@@ -18,7 +22,8 @@ public class PostContractAnalyzer : AssetPostprocessor
         bool hasScriptChanges = importedAssets.Any(path => path.EndsWith(".cs"));
         if (hasScriptChanges)
         {
-            RunScan();
+            // 延迟执行，确保 TriggerRegistry 已初始化喵~
+            EditorApplication.delayCall += () => RunScan();
         }
     }
 
@@ -27,7 +32,12 @@ public class PostContractAnalyzer : AssetPostprocessor
     {
         Debug.Log("[PostContractAnalyzer] 正在进行契约扫描，请稍候喵...");
 
-        string[] triggerEventNames = Enum.GetNames(typeof(TriggerEvent));
+        // 从 TriggerRegistry 获取所有已注册的事件名（包括枚举和特性两种方式）喵~
+        var allEventNames = TriggerRegistry.GetAllTriggers()
+            .Select(m => m.EventName)
+            .Distinct()
+            .ToList();
+
         string scriptsPath = Application.dataPath;
         string[] allScripts = Directory.GetFiles(scriptsPath, "*.cs", SearchOption.AllDirectories);
 
@@ -38,11 +48,12 @@ public class PostContractAnalyzer : AssetPostprocessor
             // 跳过自身和 PostOffice/PostSystem/Registry 喵~
             string fileName = Path.GetFileName(scriptPath);
             if (fileName == "PostContractAnalyzer.cs" || fileName == "PostOffice.cs" ||
-                fileName == "PostSystem.cs" || fileName == "TriggerRegistry.cs") continue;
+                fileName == "PostSystem.cs" || fileName == "TriggerRegistry.cs" ||
+                fileName == "TriggerEventInfoAttribute.cs") continue;
 
             string content = File.ReadAllText(scriptPath);
 
-            foreach (var evtName in triggerEventNames)
+            foreach (var evtName in allEventNames)
             {
                 // 正则匹配：PostSystem.Instance.Send("EventName" 喵~
                 string pattern = $@"PostSystem\.Instance\.Send\s*\(\s*""{evtName}""";
@@ -50,7 +61,7 @@ public class PostContractAnalyzer : AssetPostprocessor
                 {
                     violationCount++;
                     Debug.LogError($"<color=red>[契约违例]</color> 在脚本 [{fileName}] 中检测到直接发送契约事件 [{evtName}] 的行为！\n" +
-                                   $"请修改为使用 PostOffice.Send(TriggerEvent.{evtName}, payload) 喵！\n路径：{scriptPath}");
+                                   $"请修改为使用 PostOffice.Send(TriggerEvent.{evtName}, payload) 或 PostOffice.Send(\"{evtName}\", payload) 喵！\n路径：{scriptPath}");
                 }
             }
         }

@@ -4,6 +4,9 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// EXE 注册表 - VFS 后缀名到执行处理器的映射喵~
 ///
@@ -201,4 +204,6 @@ public static class ExeRegistry
         try { return assembly.GetTypes(); }
         catch { return Array.Empty<Type>(); }
     }
+}
+
 }

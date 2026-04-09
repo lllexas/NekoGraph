@@ -64,5 +64,5 @@ public class LeafNode_B_Data : BaseNodeData
     public string ProcessID;
 
     [InPort(0, "等待输入", NekoPortCapacity.Multi)]
-    public List<string> OutputNodeIds = new List<string>();
+    public List<string> InputNodeIDs = new List<string>();
 }

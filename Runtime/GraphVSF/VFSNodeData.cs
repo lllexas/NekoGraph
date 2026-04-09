@@ -47,10 +47,54 @@ public class VFSNodeData : BaseNodeData
     }
 
     /// <summary>
-    /// 数据内容（JSON 格式）
-    /// 目录可为空，文件必须有数据
+    /// 载荷内容类型喵~
     /// </summary>
-    [Tooltip("数据（JSON 格式）")]
+    [Tooltip("内容类型")]
+    public VFSContentKind ContentKind = VFSContentKind.Json;
+
+    /// <summary>
+    /// 载荷来源喵~
+    /// </summary>
+    [Tooltip("内容来源")]
+    public VFSContentSource ContentSource = VFSContentSource.Inline;
+
+    /// <summary>
+    /// 内嵌文本载荷喵~
+    /// </summary>
+    [Tooltip("内嵌文本载荷")]
+    [TextArea(4, 8)]
+    public string InlineText;
+
+    /// <summary>
+    /// 外部引用路径喵~
+    /// 文本引用通常是 Resources 路径；UnityObject 引用同样优先按 Resources 路径解析。
+    /// </summary>
+    [Tooltip("外部引用路径")]
+    public string ReferencePath;
+
+    /// <summary>
+    /// 外部资源 GUID（编辑器辅助字段）喵~
+    /// </summary>
+    [Tooltip("资源 GUID（编辑器辅助）")]
+    public string AssetGuid;
+
+    /// <summary>
+    /// 外部资源 AssetPath（编辑器辅助字段）喵~
+    /// </summary>
+    [Tooltip("资源路径（编辑器辅助）")]
+    public string AssetPath;
+
+    /// <summary>
+    /// Unity 引用类型名喵~
+    /// </summary>
+    [Tooltip("Unity 对象类型名")]
+    public string UnityObjectTypeName;
+
+    /// <summary>
+    /// 历史兼容字段喵~
+    /// 旧节点仍可能把文本放在 DataJson 中。
+    /// </summary>
+    [Tooltip("历史兼容：旧版 DataJson")]
     [TextArea(4, 8)]
     public string DataJson;
 
@@ -89,4 +133,32 @@ public class VFSNodeData : BaseNodeData
     /// Extension 不为空 = 文件
     /// </summary>
     public bool IsFile => !string.IsNullOrEmpty(Extension);
+
+    public string GetInlineText()
+    {
+        return !string.IsNullOrWhiteSpace(InlineText) ? InlineText : (DataJson ?? string.Empty);
+    }
+
+    public VFSContentKind GetEffectiveContentKind()
+    {
+        if (!string.IsNullOrEmpty(Extension))
+        {
+            if (string.Equals(Extension, ".csv", StringComparison.OrdinalIgnoreCase) &&
+                ContentKind == VFSContentKind.Json &&
+                string.IsNullOrWhiteSpace(UnityObjectTypeName))
+            {
+                return VFSContentKind.Csv;
+            }
+        }
+
+        return ContentKind;
+    }
+
+    public VFSContentSource GetEffectiveContentSource()
+    {
+        if (GetEffectiveContentKind() == VFSContentKind.UnityObject && ContentSource == VFSContentSource.Inline)
+            return VFSContentSource.Reference;
+
+        return ContentSource;
+    }
 }

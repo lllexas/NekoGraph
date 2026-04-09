@@ -1,6 +1,9 @@
 using System;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// VFSNode 策略 - VFS 节点执行处理器喵~
 ///
@@ -37,6 +40,7 @@ public class VFSNodeStrategy : NodeStrategy
                 catch (Exception e)
                 {
                     Debug.LogError($"[VFSNodeStrategy] 执行后缀 '{vfsNode.Extension}' 的处理器失败：{e.Message} 喵~");
+                    Debug.LogException(e);
                     result = HandleResult.Error;
                 }
             }
@@ -65,4 +69,6 @@ public class VFSNodeStrategy : NodeStrategy
     {
         // VFS 节点暂不响应外部事件喵~
     }
+}
+
 }

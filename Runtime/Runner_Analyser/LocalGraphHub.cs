@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// 每个宿主对象独立持有的轻量图上下文。
 /// 不参与全局 GraphHub 调度，适合临时单位的本地 pack / 被动 / 光环后端。
@@ -26,4 +29,6 @@ public sealed class LocalGraphHub
     {
         Context.Runner.Tick();
     }
+}
+
 }

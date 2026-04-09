@@ -17,6 +17,8 @@ using UnityEngine;
 /// 元数据会自动同步，无需手动维护两份东西喵~
 ///
 /// ═══════════════════════════════════════════════════════════════
+/// 
+/// 【修复版】只返回有实际内容的分类，避免显示空分类和老旧信息喵~
 /// </summary>
 public static class CommandRegistryInfo
 {
@@ -36,19 +38,6 @@ public static class CommandRegistryInfo
 
     // 注册表喵~
     private static Dictionary<string, CommandInfo> _commands = new Dictionary<string, CommandInfo>();
-
-    // 分类列表（按顺序）喵~
-    private static List<string> _categories = new List<string>
-    {
-        "Entity",     // 🏗️ 实体相关
-        "Story",      // 🎬 剧情相关
-        "Scene",      // 🗺️ 场景相关
-        "Time",       // ⏰ 时间相关
-        "Mission",    // 🎮 任务相关
-        "Debug",      // 🔧 调试相关
-        "System",     // ⚡ 系统相关
-        "UI"          // 🖼️ 界面相关
-    };
 
     // 是否已初始化喵~
     private static bool _isInitialized = false;
@@ -122,7 +111,7 @@ public static class CommandRegistryInfo
     {
         EnsureInitialized();
         return _commands.Values
-            .OrderBy(c => _categories.IndexOf(c.Category))
+            .OrderBy(c => c.Category)
             .ThenBy(c => c.DisplayName)
             .GroupBy(c => c.Category)
             .ToArray();
@@ -141,36 +130,52 @@ public static class CommandRegistryInfo
     }
 
     /// <summary>
-    /// 获取所有分类列表喵~
+    /// 获取所有分类列表（只返回有实际命令的分类）喵~
     /// </summary>
     public static List<string> GetAllCategories()
     {
         EnsureInitialized();
-        return new List<string>(_categories);
-    }
-
-    /// <summary>
-    /// 获取指定分类下的命令显示名列表喵~
-    /// </summary>
-    public static List<string> GetCommandsInCategory(string category)
-    {
-        EnsureInitialized();
+        
+        // 动态统计有实际命令的分类，按字母排序喵~
         return _commands.Values
-            .Where(c => c.Category == category)
-            .OrderBy(c => c.DisplayName)
-            .Select(c => c.DisplayName)
+            .Select(c => c.Category)
+            .Distinct()
+            .OrderBy(c => c)
             .ToList();
     }
 
     /// <summary>
+    /// 获取指定分类下的命令显示名列表喵~
+    /// 如果分类为空，返回 ["(无)"] 而不是空列表喵~
+    /// </summary>
+    public static List<string> GetCommandsInCategory(string category)
+    {
+        EnsureInitialized();
+        var commands = _commands.Values
+            .Where(c => c.Category == category)
+            .OrderBy(c => c.DisplayName)
+            .Select(c => c.DisplayName)
+            .ToList();
+        
+        // 如果分类为空，返回"(无)"而不是空列表喵~
+        if (commands.Count == 0)
+        {
+            commands.Add("(无)");
+        }
+        
+        return commands;
+    }
+
+    /// <summary>
     /// 获取命令的分类喵~
+    /// 找不到返回 "(未分类)" 而不是硬编码的默认值喵~
     /// </summary>
     public static string GetCategoryFromCommandName(string commandName)
     {
         EnsureInitialized();
         if (_commands.TryGetValue(commandName, out var info))
             return info.Category;
-        return "System";
+        return "(未分类)";
     }
 
     /// <summary>
@@ -179,6 +184,9 @@ public static class CommandRegistryInfo
     public static string GetCommandNameFromDisplayName(string displayName)
     {
         EnsureInitialized();
+        // 特殊处理"(无)"选项喵~
+        if (displayName == "(无)") return "";
+        
         foreach (var cmd in _commands.Values)
         {
             if (cmd.DisplayName == displayName)
@@ -189,13 +197,14 @@ public static class CommandRegistryInfo
 
     /// <summary>
     /// 根据命令名获取显示名喵~
+    /// 找不到返回 "(未知命令)" 而不是原样返回喵~
     /// </summary>
     public static string GetDisplayNameFromCommandName(string commandName)
     {
         EnsureInitialized();
         if (_commands.TryGetValue(commandName, out var info))
             return info.DisplayName;
-        return commandName;
+        return "(未知命令)";
     }
 
     /// <summary>

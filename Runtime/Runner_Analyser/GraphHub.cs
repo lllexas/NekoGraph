@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 // ═══════════════════════════════════════════════════════════════
 // 权限系统 - 操作系统原理喵~ 🔐
 // ═══════════════════════════════════════════════════════════════
@@ -183,4 +186,6 @@ public class GraphHub : SingletonMono<GraphHub>
             GetContext(slot);
         }
     }
+}
+
 }
