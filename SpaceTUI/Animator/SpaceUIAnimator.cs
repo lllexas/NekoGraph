@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using DG.Tweening;
@@ -66,6 +66,11 @@ namespace SpaceTUI
         /// 子类重写此属性提供 UI ID，Inspector 会显示但由代码控制
         /// </summary>
         protected virtual string UIID => "";
+
+        /// <summary>
+        /// 获取 UI ID（供外部查询）
+        /// </summary>
+        public string GetUIID() => _uiID;
 
         [Header("动画配置")]
         [Tooltip("淡入/淡出动画时长（秒）")]
@@ -318,7 +323,7 @@ namespace SpaceTUI
         // =========================================================
 
         /// <summary>
-        /// 匹配 UI ID（将 object 转为 string 并对比）
+        /// 匹配 UI ID（支持 string 或 RoutedRequest.uiid）
         /// </summary>
         protected bool MatchUIID(object data)
         {
@@ -328,10 +333,13 @@ namespace SpaceTUI
                 return false;
             }
 
-            string targetID = data as string;
+            string targetID = null;
+            if (data is string s) targetID = s;
+            else if (data is IRoutedRequest req) targetID = req.uiid;
+            
             if (string.IsNullOrEmpty(targetID))
             {
-                Debug.LogWarning($"<color=orange>[SpaceUIAnimator]</color> 事件参数不是 string 类型：{data?.GetType().Name}");
+                Debug.LogWarning($"<color=orange>[SpaceUIAnimator]</color> 事件参数无法识别 UI ID：{data?.GetType().Name}");
                 return false;
             }
 

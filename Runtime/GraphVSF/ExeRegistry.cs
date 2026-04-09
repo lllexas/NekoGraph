@@ -34,6 +34,7 @@ public static class ExeRegistry
     /// <summary>
     /// EXE 处理器委托喵~
     /// content: VFS 统一解析载荷，兼容文本和 Unity 引用。
+    /// continueAction: Strategy 提供的继续传播委托，Wait 模式下由 Handle 决定何时调用。
     /// 返回 HandleResult 控制 VFSNodeStrategy 是否继续传播信号喵~
     /// </summary>
     public delegate HandleResult EXEHandlerDelegate(
@@ -41,7 +42,8 @@ public static class ExeRegistry
         SignalContext context,
         BasePackData pack,
         GraphRunner runner,
-        string packInstanceID
+        string packInstanceID,
+        System.Action continueAction
     );
 
     // ─────────────────────────────────────────────────────────
@@ -55,6 +57,15 @@ public static class ExeRegistry
     // ─────────────────────────────────────────────────────────
     // 初始化：全域扫描喵~
     // ─────────────────────────────────────────────────────────
+
+#if UNITY_EDITOR
+    [UnityEditor.InitializeOnLoadMethod]
+    private static void EditorInitialize()
+    {
+        // 编辑器下：每次脚本编译后重新初始化
+        Initialize();
+    }
+#endif
 
     /// <summary>
     /// 初始化 ExeRegistry，全域扫描带 [EXEHandler] 属性的静态方法并注册喵~
@@ -79,11 +90,12 @@ public static class ExeRegistry
             if (attr == null) continue;
 
             var parameters = method.GetParameters();
-            if (parameters.Length == 5 &&
+            if (parameters.Length == 6 &&
                 parameters[1].ParameterType == typeof(SignalContext) &&
                 parameters[2].ParameterType == typeof(BasePackData) &&
                 parameters[3].ParameterType == typeof(GraphRunner) &&
                 parameters[4].ParameterType == typeof(string) &&
+                parameters[5].ParameterType == typeof(System.Action) &&
                 (method.ReturnType == typeof(HandleResult) || method.ReturnType == typeof(void)))
             {
                 var suffix = NormalizeSuffix(attr.Suffix);
@@ -98,7 +110,7 @@ public static class ExeRegistry
                     {
                         var legacyHandler = (Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>)
                             Delegate.CreateDelegate(typeof(Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>), method);
-                        _handlers[suffix] = (content, context, pack, runner, packInstanceID) =>
+                        _handlers[suffix] = (content, context, pack, runner, packInstanceID, continueAction) =>
                         {
                             legacyHandler(content, context, pack, runner, packInstanceID);
                             return HandleResult.Push;
@@ -109,7 +121,7 @@ public static class ExeRegistry
                 {
                     var legacyHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string>)
                         Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string>), method);
-                    _handlers[suffix] = (content, context, pack, runner, packInstanceID) =>
+                    _handlers[suffix] = (content, context, pack, runner, packInstanceID, continueAction) =>
                     {
                         legacyHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID);
                         return HandleResult.Push;

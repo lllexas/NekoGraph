@@ -35,7 +35,9 @@ public class VFSNodeStrategy : NodeStrategy
                 try
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
-                    result = handler.Invoke(content, context, pack, runner, packInstanceID);
+                    // 准备继续传播的委托
+                    System.Action continueAction = () => EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
+                    result = handler.Invoke(content, context, pack, runner, packInstanceID, continueAction);
                 }
                 catch (Exception e)
                 {
@@ -49,14 +51,22 @@ public class VFSNodeStrategy : NodeStrategy
                 Debug.LogWarning($"[VFSNodeStrategy] 未找到后缀 '{vfsNode.Extension}' 的 EXEHandler，跳过执行喵~");
             }
         }
+        else if (!vfsNode.IsFile || !vfsNode.IsEnabled)
+        {
+            // 目录节点或禁用节点：直接传播
+            EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
+            return;
+        }
 
         // 根据 Handle 返回值决定是否传播信号喵~
         if (result == HandleResult.Push)
         {
             EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
         }
-        // HandleResult.Nope: Handle 自行通过 runner.InjectSignal 传递信号
+        // HandleResult.Wait: Handle 自行通过 continueAction 决定何时传播
         // HandleResult.Error: 已记录错误，不传播信号
+        
+
     }
 
     public override void OnEvent(
