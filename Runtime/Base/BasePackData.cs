@@ -129,6 +129,16 @@ public class BasePackData
     [Tooltip("活跃信号队列（运行时状态）")]
     public Queue<SignalContext> ActiveSignals = new Queue<SignalContext>();
 
+    /// <summary>
+    /// 挂起信号字典 - Wait 状态下被冻结的后续子信号喵~
+    /// Key: 子信号自身的 SignalId
+    /// Value: 子信号本体
+    /// 存档时保存，Handler 完成后通过闭包持有的 key 列表精确 Remove + Enqueue 恢复喵~
+    /// </summary>
+    [JsonProperty(ItemTypeNameHandling = TypeNameHandling.Auto)]
+    [Tooltip("挂起信号字典")]
+    public Dictionary<string, SignalContext> SuspendedSignals = new Dictionary<string, SignalContext>();
+
     private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
     {
         Formatting = Formatting.Indented,

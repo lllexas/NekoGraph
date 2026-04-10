@@ -9,6 +9,12 @@ using System.Collections.Generic;
 public class SignalContext
 {
     /// <summary>
+    /// 信号唯一 ID - 用于挂起字典的 key 喵~
+    /// 字段初始化器保证任何构造路径（含反序列化）都有值，JSON 覆盖后恢复存档 ID 喵~
+    /// </summary>
+    public string SignalId = Guid.NewGuid().ToString("N");
+
+    /// <summary>
     /// 当前节点 ID（信号正在处理的节点）
     /// </summary>
     public string CurrentNodeId;

@@ -35,8 +35,9 @@ public class VFSNodeStrategy : NodeStrategy
                 try
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
-                    // 准备继续传播的委托
-                    System.Action continueAction = () => EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
+                    // continueAction 在 handler 返回前构建，此时还不知道是否 Wait，先用占位喵~
+                    List<string> suspendedIds = null;
+                    System.Action continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
                     result = handler.Invoke(content, context, pack, runner, packInstanceID, continueAction);
                 }
                 catch (Exception e)
@@ -63,7 +64,11 @@ public class VFSNodeStrategy : NodeStrategy
         {
             EnqueueSignals(pack, vfsNode.ChildNodeIDs, context);
         }
-        // HandleResult.Wait: Handle 自行通过 continueAction 决定何时传播
+        else if (result == HandleResult.Wait)
+        {
+            // Wait 模式：后续信号保存到挂起字典，闭包持有 ID 列表，恢复时精确 Remove 喵~
+            suspendedIds = SuspendSignals(pack, vfsNode.ChildNodeIDs, context);
+        }
         // HandleResult.Error: 已记录错误，不传播信号
         
 
@@ -78,6 +83,43 @@ public class VFSNodeStrategy : NodeStrategy
         string packInstanceID)
     {
         // VFS 节点暂不响应外部事件喵~
+    }
+
+    /// <summary>
+    /// 暂停信号到挂起字典 - Wait 状态下使用喵~
+    /// 返回被挂起的子信号 ID 列表，供 continueAction 闭包持有以精确恢复喵~
+    /// </summary>
+    private List<string> SuspendSignals(BasePackData pack, IEnumerable<string> targetIds, SignalContext context)
+    {
+        if (pack.Nodes.TryGetValue(context.CurrentNodeId, out var currentNode))
+            currentNode.IsChecked = true;
+
+        var suspendedIds = new List<string>();
+        foreach (var targetId in targetIds)
+        {
+            var newSignal = context.Clone(copyPath: true);
+            newSignal.RecordConnection(new ConnectionData(context.CurrentNodeId, -1, targetId, -1));
+            newSignal.CurrentNodeId = targetId;
+            pack.SuspendedSignals[newSignal.SignalId] = newSignal;
+            suspendedIds.Add(newSignal.SignalId);
+        }
+        return suspendedIds;
+    }
+
+    /// <summary>
+    /// 从挂起字典恢复信号到活跃队列 - continueAction 回调时调用喵~
+    /// 精确 Remove 闭包持有的 key，不影响其他挂起信号喵~
+    /// </summary>
+    private void ResumeSuspendedSignals(BasePackData pack, List<string> suspendedIds)
+    {
+        foreach (var id in suspendedIds)
+        {
+            if (pack.SuspendedSignals.TryGetValue(id, out var signal))
+            {
+                pack.ActiveSignals.Enqueue(signal);
+                pack.SuspendedSignals.Remove(id);
+            }
+        }
     }
 }
 

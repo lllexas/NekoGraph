@@ -191,9 +191,27 @@ public class GraphRunner
         // 1. 直接引用 PackDataDict，零副本喵~
         PersistentGuidToInstancedPackDict = packDataDict;
 
-        // 2. 扫描所有 Pack，启动未启动的（VFS 类型的 pack 注入根信号后静默通过，无副作用）
+        // 2. 扫描所有 Pack，恢复挂起信号 + 启动未启动的
         foreach (var pack in packDataDict.Values)
         {
+            // 2.1 恢复挂起信号 - Wait 状态下被冻结的信号现在重新入队喵~
+            if (pack.SuspendedSignals != null && pack.SuspendedSignals.Count > 0)
+            {
+                int totalSuspendedCount = 0;
+
+                foreach (var signal in pack.SuspendedSignals.Values)
+                {
+                    pack.ActiveSignals.Enqueue(signal);
+                    totalSuspendedCount++;
+                }
+
+                if (EnableDebugLog && totalSuspendedCount > 0)
+                    Debug.Log($"[GraphRunner] Pack '{pack.PackID}' 恢复了 {totalSuspendedCount} 个挂起信号喵~");
+
+                pack.SuspendedSignals.Clear();
+            }
+
+            // 2.2 启动未启动的 Pack
             if (!pack.HasStarted && !string.IsNullOrEmpty(pack.RootNodeId))
             {
                 pack.ActiveSignals.Enqueue(new SignalContext(pack.RootNodeId, null));
