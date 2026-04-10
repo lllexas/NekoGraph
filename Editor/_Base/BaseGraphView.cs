@@ -19,6 +19,9 @@ public class BaseGraphView : GraphView, INekoGraphNodeFactory
     /// <summary>【中央情报局】所有节点 GUID → 视觉节点映射喵~</summary>
     protected Dictionary<string, BaseNode> NodeMap = new Dictionary<string, BaseNode>();
 
+    /// <summary>内容变更时的回调（用于脏标记）喵~</summary>
+    public System.Action OnContentChanged;
+
     protected List<BaseNode> SelectedNodes => selection.OfType<BaseNode>().ToList();
 
     protected string CurrentPackID = string.Empty;
@@ -49,6 +52,8 @@ public class BaseGraphView : GraphView, INekoGraphNodeFactory
 
     private GraphViewChange OnGraphViewChanged(GraphViewChange changes)
     {
+        bool hasChanges = false;
+
         if (changes.elementsToRemove != null)
         {
             foreach (var element in changes.elementsToRemove)
@@ -58,9 +63,26 @@ public class BaseGraphView : GraphView, INekoGraphNodeFactory
                     if (!string.IsNullOrEmpty(node.Data?.NodeID) && NodeMap.ContainsKey(node.Data.NodeID))
                         NodeMap.Remove(node.Data.NodeID);
                     OnNodeRemovedGeneric(node);
+                    hasChanges = true;
+                }
+                else if (element is Edge)
+                {
+                    hasChanges = true;
                 }
             }
         }
+
+        if (changes.edgesToCreate != null)
+        {
+            hasChanges = true;
+        }
+
+        // 使用延迟调用避免频繁触发
+        if (hasChanges)
+        {
+            EditorApplication.delayCall += () => OnContentChanged?.Invoke();
+        }
+
         return changes;
     }
 

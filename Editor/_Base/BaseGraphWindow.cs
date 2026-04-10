@@ -8,13 +8,197 @@ using UnityEngine;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 using NekoGraph;
+using NekoGraph.Editor;
 
 /// <summary>
 /// 统一 Pack 编辑器窗口 - 非泛型，文件驱动喵~
 /// 打开任意 Pack JSON，自动调用对应 SearchWindow，无需子类喵~
 /// </summary>
-public class PackWindow : EditorWindow
+public class PackWindow : EditorWindow, IPackWindowSaveable
 {
+        #region IPackWindowSaveable Implementation
+
+        /// <summary>关联的资源路径（用于自动保存）</summary>
+        public string AssetPath { get; private set; }
+
+        /// <summary>是否有有效的资源路径</summary>
+        public bool HasValidAssetPath => !string.IsNullOrEmpty(AssetPath);
+
+        /// <summary>窗口标题</summary>
+        public string Title => titleContent?.text ?? "Pack Editor";
+
+        /// <summary>是否已修改（脏标记）</summary>
+        public bool IsDirty { get; private set; }
+
+        /// <summary>静默保存（用于自动保存）</summary>
+        public void SilentSave()
+        {
+            if (!HasValidAssetPath || _currentPack == null) return;
+
+            try
+            {
+                _graphView.FlushToPack(_currentPack);
+                File.WriteAllText(AssetPath, _currentPack.ToJson());
+                IsDirty = false;
+                UpdateTitle();
+                Debug.Log($"[PackWindow] 已自动保存: {AssetPath}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[PackWindow] 自动保存失败: {e.Message}");
+            }
+        }
+
+        /// <summary>标记为已修改</summary>
+        private void MarkDirty()
+        {
+            if (!IsDirty)
+            {
+                IsDirty = true;
+                UpdateTitle();
+            }
+        }
+
+        /// <summary>更新窗口标题（显示脏标记）</summary>
+        private void UpdateTitle()
+        {
+            string baseTitle = _currentPack?.PackID ?? "Pack Editor";
+            string dirtyMark = IsDirty ? " *" : "";
+            string newMark = HasValidAssetPath ? "" : " [New]";
+            titleContent = new GUIContent($"{baseTitle}{dirtyMark}{newMark}");
+        }
+
+        #endregion
+
+        /// <summary>
+        /// 从资源路径打开 PackWindow
+        /// </summary>
+        public static void OpenWithAsset(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath)) return;
+
+            // 检查是否已经有打开的窗口编辑这个文件
+            var existingWindows = Resources.FindObjectsOfTypeAll<PackWindow>();
+            foreach (var window in existingWindows)
+            {
+                if (window.AssetPath == assetPath)
+                {
+                    window.Focus();
+                    return;
+                }
+            }
+
+            // 创建新窗口
+            var newWindow = CreateWindow<PackWindow>();
+            newWindow.AssetPath = assetPath;
+            newWindow.LoadFromPath(assetPath);
+            newWindow.Show();
+        }
+
+        /// <summary>
+        /// 从指定路径加载 Pack
+        /// </summary>
+        public void LoadFromPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+
+            // 确保是绝对路径
+            string fullPath = path;
+            if (!Path.IsPathRooted(path))
+            {
+                fullPath = Path.Combine(Application.dataPath, "..", path);
+                fullPath = Path.GetFullPath(fullPath);
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                Debug.LogError($"[PackWindow] 文件不存在: {fullPath}");
+                return;
+            }
+
+            string json;
+            try { json = File.ReadAllText(fullPath); }
+            catch (Exception e) { EditorUtility.DisplayDialog("读取失败", e.Message, "确定"); return; }
+
+            BasePackData pack;
+            try { pack = BasePackData.FromJson(json); }
+            catch (Exception e) { EditorUtility.DisplayDialog("读取失败", $"JSON 格式错误：{e.Message}", "确定"); return; }
+
+            if (pack == null) { EditorUtility.DisplayDialog("读取失败", "文件内容为空喵~", "确定"); return; }
+
+            _currentPack = pack;
+            _currentFilePath = fullPath;
+            AssetPath = path; // 保存相对路径
+
+            _graphView.PopulateFromPack(pack);
+
+            string id = !string.IsNullOrEmpty(pack.PackID) ? pack.PackID : Path.GetFileNameWithoutExtension(path);
+            _packIDField.SetValueWithoutNotify(id);
+            _graphView.SetPackID(id);
+            _systemField.SetValueWithoutNotify(pack.System);
+
+            // 同步滑块和标签喵~（使用反向映射）
+            _readableFromSlider.SetValueWithoutNotify(ValueToSlider(pack.ReadableFrom));
+            _writableFromSlider.SetValueWithoutNotify(ValueToSlider(pack.WritableFrom));
+            _readableFromValueLabel.text = pack.ReadableFrom.ToString();
+            _writableFromValueLabel.text = pack.WritableFrom.ToString();
+            _readableFromSlider.tooltip = BuildAccessTooltip(pack.ReadableFrom, "可读");
+            _writableFromSlider.tooltip = BuildAccessTooltip(pack.WritableFrom, "可写");
+            ValidateAccessConfig();
+
+            SetupSearchWindow(pack);
+
+            IsDirty = false;
+            UpdateTitle();
+
+            Debug.Log($"[PackWindow] 已加载: {path}");
+        }
+
+        /// <summary>
+        /// GraphView 内容变更回调
+        /// </summary>
+        private void OnGraphContentChanged()
+        {
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// 如果有未保存的更改，提示用户保存
+        /// </summary>
+        /// <param name="action">正在执行的操作名称</param>
+        /// <returns>true 表示继续操作，false 表示取消</returns>
+        private bool PromptSaveIfDirty(string action)
+        {
+            if (!IsDirty) return true;
+
+            int result = EditorUtility.DisplayDialogComplex("未保存的更改",
+                $"当前 Pack 有未保存的更改，是否先保存？\n\n操作：{action}",
+                "保存",   // 0
+                "不保存", // 1
+                "取消");  // 2
+
+            switch (result)
+            {
+                case 0: // 保存并继续
+                    if (HasValidAssetPath)
+                    {
+                        SilentSave();
+                        return true;
+                    }
+                    else
+                    {
+                        // 新文件从未保存过，走完整保存流程
+                        SaveData();
+                        // 如果保存成功（有路径了），继续；如果取消了保存对话框，取消操作
+                        return HasValidAssetPath;
+                    }
+                case 1: // 不保存，继续
+                    return true;
+                default: // 取消
+                    return false;
+            }
+        }
+
     private BaseGraphView _graphView;
     private VisualElement _viewContainer;
     private TextField _packIDField;
@@ -91,6 +275,13 @@ public class PackWindow : EditorWindow
 
     private void OnDisable()
     {
+        // 关闭窗口时自动保存（ShaderGraph 风格）
+        if (IsDirty && HasValidAssetPath)
+        {
+            SilentSave();
+            Debug.Log($"[PackWindow] 关闭时自动保存: {AssetPath}");
+        }
+
         if (_graphView != null)
             _viewContainer?.Remove(_graphView);
     }
@@ -106,11 +297,114 @@ public class PackWindow : EditorWindow
 
         _graphView = new BaseGraphView { name = "NekoGraph" };
         _graphView.StretchToParentSize();
+        _graphView.OnContentChanged = OnGraphContentChanged;
         _viewContainer.Add(_graphView);
-        
+
         // 立即初始化SearchWindow，确保右键菜单立即可用
         InitializeDefaultPack();
         SetupSearchWindow(_currentPack);
+
+        // 设置拖拽支持
+        SetupDragAndDrop();
+    }
+
+    /// <summary>
+    /// 设置拖拽支持，接受 .nekograph 文件拖拽加载
+    /// </summary>
+    private void SetupDragAndDrop()
+    {
+        // 在 rootVisualElement 上监听拖拽事件
+        rootVisualElement.RegisterCallback<DragEnterEvent>(OnDragEnter);
+        rootVisualElement.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
+        rootVisualElement.RegisterCallback<DragPerformEvent>(OnDragPerform);
+        rootVisualElement.RegisterCallback<DragLeaveEvent>(OnDragLeave);
+    }
+
+    private void OnDragEnter(DragEnterEvent evt)
+    {
+        if (IsNekoGraphDrag())
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+            _viewContainer?.AddToClassList("drag-over");
+        }
+        else
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+        }
+        evt.StopPropagation();
+    }
+
+    private void OnDragUpdated(DragUpdatedEvent evt)
+    {
+        if (IsNekoGraphDrag())
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+        }
+        else
+        {
+            DragAndDrop.visualMode = DragAndDropVisualMode.Rejected;
+        }
+        evt.StopPropagation();
+    }
+
+    private void OnDragPerform(DragPerformEvent evt)
+    {
+        if (IsNekoGraphDrag())
+        {
+            DragAndDrop.AcceptDrag();
+
+            var paths = DragAndDrop.paths;
+            if (paths != null && paths.Length > 0)
+            {
+                string path = paths[0];
+                if (path.EndsWith(".nekograph", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 询问是否保存当前（如果有修改）
+                    if (IsDirty)
+                    {
+                        int result = EditorUtility.DisplayDialogComplex("未保存的更改",
+                            $"当前 Pack 有未保存的更改，是否先保存？",
+                            "保存并打开", "不保存直接打开", "取消");
+
+                        switch (result)
+                        {
+                            case 0: // 保存并打开
+                                SilentSave();
+                                break;
+                            case 1: // 不保存
+                                break;
+                            default: // 取消
+                                return;
+                        }
+                    }
+
+                    // 加载新 Pack
+                    LoadFromPath(path);
+                    Debug.Log($"[PackWindow] 从拖拽加载: {path}");
+                }
+            }
+        }
+
+        _viewContainer?.RemoveFromClassList("drag-over");
+        evt.StopPropagation();
+    }
+
+    private void OnDragLeave(DragLeaveEvent evt)
+    {
+        _viewContainer?.RemoveFromClassList("drag-over");
+    }
+
+    private bool IsNekoGraphDrag()
+    {
+        if (DragAndDrop.paths == null || DragAndDrop.paths.Length == 0)
+            return false;
+
+        foreach (var path in DragAndDrop.paths)
+        {
+            if (path.EndsWith(".nekograph", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
     
     /// <summary>
@@ -147,7 +441,11 @@ public class PackWindow : EditorWindow
             value = "",
             style = { width = 100, unityTextAlign = TextAnchor.MiddleLeft }
         };
-        _packIDField.RegisterValueChangedCallback(evt => _graphView?.SetPackID(evt.newValue));
+        _packIDField.RegisterValueChangedCallback(evt =>
+        {
+            _graphView?.SetPackID(evt.newValue);
+            MarkDirty();
+        });
         leftContainer.Add(packIDLabel);
         leftContainer.Add(_packIDField);
 
@@ -162,6 +460,7 @@ public class PackWindow : EditorWindow
         {
             if (_currentPack != null)
                 _currentPack.System = (NodeSystem)evt.newValue;
+            MarkDirty();
         });
         leftContainer.Add(systemLabel);
         leftContainer.Add(_systemField);
@@ -262,6 +561,10 @@ public class PackWindow : EditorWindow
 
     private void NewFile()
     {
+        // 检查未保存的更改
+        if (!PromptSaveIfDirty("创建新文件"))
+            return;
+
         _currentPack = new BasePackData
         {
             PackID = "new_pack",
@@ -271,12 +574,13 @@ public class PackWindow : EditorWindow
         };
         _currentPack.Initialize();
         _currentFilePath = null;
-        
+        AssetPath = null;
+
         _graphView.PopulateFromPack(_currentPack);
         _packIDField.SetValueWithoutNotify(_currentPack.PackID);
         _graphView.SetPackID(_currentPack.PackID);
         _systemField.SetValueWithoutNotify(_currentPack.System);
-        
+
         _readableFromSlider.SetValueWithoutNotify(ValueToSlider(_currentPack.ReadableFrom));
         _writableFromSlider.SetValueWithoutNotify(ValueToSlider(_currentPack.WritableFrom));
         _readableFromValueLabel.text = _currentPack.ReadableFrom.ToString();
@@ -284,16 +588,22 @@ public class PackWindow : EditorWindow
         _readableFromSlider.tooltip = BuildAccessTooltip(_currentPack.ReadableFrom, "可读");
         _writableFromSlider.tooltip = BuildAccessTooltip(_currentPack.WritableFrom, "可写");
         ValidateAccessConfig();
-        
+
         SetupSearchWindow(_currentPack);
-        
-        titleContent = new GUIContent("Pack Editor [New]");
+
+        IsDirty = false;
+        UpdateTitle();
+
         Debug.Log("[PackWindow] 创建新文件");
     }
 
     private void LoadData()
     {
-        string path = EditorUtility.OpenFilePanel("读取 Pack", "Assets/Resources", "json");
+        // 检查未保存的更改
+        if (!PromptSaveIfDirty("加载文件"))
+            return;
+
+        string path = EditorUtility.OpenFilePanel("读取 Pack", "Assets/Resources", "nekograph");
         if (string.IsNullOrEmpty(path)) return;
 
         string json;
@@ -344,15 +654,34 @@ public class PackWindow : EditorWindow
             return;
         }
 
-        string defaultDir = string.IsNullOrEmpty(_currentFilePath)
-            ? "Assets/Resources"
-            : Path.GetDirectoryName(_currentFilePath);
-        string path = EditorUtility.SaveFilePanel("保存 Pack", defaultDir, $"{_packIDField.value}.json", "json");
-        if (string.IsNullOrEmpty(path)) return;
+        // 如果有有效路径，直接保存；否则弹出保存对话框
+        string path;
+        if (HasValidAssetPath && !string.IsNullOrEmpty(_currentFilePath))
+        {
+            path = _currentFilePath;
+        }
+        else
+        {
+            string defaultDir = string.IsNullOrEmpty(_currentFilePath)
+                ? "Assets/Resources"
+                : Path.GetDirectoryName(_currentFilePath);
+            string defaultName = $"{_packIDField.value}.nekograph";
+            path = EditorUtility.SaveFilePanel("保存 Pack", defaultDir, defaultName, "nekograph");
+            if (string.IsNullOrEmpty(path)) return;
+        }
 
         _graphView.FlushToPack(_currentPack);
         File.WriteAllText(path, _currentPack.ToJson());
         _currentFilePath = path;
+
+        // 更新资源路径（如果是项目内的文件）
+        if (path.StartsWith(Application.dataPath) || path.Replace('\\', '/').Contains("/Assets/"))
+        {
+            AssetPath = path.Replace('\\', '/');
+        }
+
+        IsDirty = false;
+        UpdateTitle();
 
         RegisterToMetaLib(path, _currentPack);
         AssetDatabase.Refresh();
