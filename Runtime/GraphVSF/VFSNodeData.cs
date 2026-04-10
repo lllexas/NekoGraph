@@ -143,7 +143,8 @@ public class VFSNodeData : BaseNodeData
     {
         if (!string.IsNullOrEmpty(Extension))
         {
-            if (string.Equals(Extension, ".csv", StringComparison.OrdinalIgnoreCase) &&
+            if ((string.Equals(Extension, ".csv", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(Extension, ".choice", StringComparison.OrdinalIgnoreCase)) &&
                 ContentKind == VFSContentKind.Json &&
                 string.IsNullOrWhiteSpace(UnityObjectTypeName))
             {

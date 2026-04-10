@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using Newtonsoft.Json;
 using System.Linq;
@@ -198,12 +199,41 @@ public class BasePackData
 
     /// <summary>
     /// 序列化前钩子，子类可重写喵~
-    /// 默认行为：从节点提取 [SideParaKey] 标记的字段到 SidePara 喵~
+    /// 默认行为：
+    /// 1. 对所有 [OutPort] 的 List<string> 按目标节点 Y 位置排序（从上到下）
+    /// 2. 从节点提取 [SideParaKey] 标记的字段到 SidePara
     /// </summary>
     protected virtual void OnBeforeSerialize()
     {
         BuildRootNodeId();
+        SortOutPortsByTargetY();
         SidePara = SideParaRegistry.Extract(Nodes.Values);
+    }
+    
+    /// <summary>
+    /// 对所有节点中带 [OutPort] 特性的 List<string> 字段按目标节点 Y 位置排序
+    /// </summary>
+    void SortOutPortsByTargetY()
+    {
+        foreach (var node in Nodes.Values)
+        {
+            if (node == null) continue;
+            
+            var fields = node.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var field in fields)
+            {
+                if (field.GetCustomAttribute<OutPortAttribute>() == null) continue;
+                if (field.FieldType != typeof(List<string>)) continue;
+                
+                var list = field.GetValue(node) as List<string>;
+                if (list == null || list.Count <= 1) continue;
+                
+                var sorted = list
+                    .OrderBy(id => Nodes.TryGetValue(id, out var target) ? target.EditorPosition.y : float.MaxValue)
+                    .ToList();
+                field.SetValue(node, sorted);
+            }
+        }
     }
 
     /// <summary>

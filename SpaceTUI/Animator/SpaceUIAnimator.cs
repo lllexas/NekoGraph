@@ -122,7 +122,7 @@ namespace SpaceTUI
         // =========================================================
         //  四层独立轨道（Track Independence）
         // =========================================================
-        // 轨道 A：状态转换轨（Alpha/Fade）
+        // 轨道 A：状态转换轨（Alpha/Fade，不再包含位置）
         protected Sequence _stateTween;
 
         // 轨道 B：旋转轨（Rotate）
@@ -133,6 +133,9 @@ namespace SpaceTUI
 
         // 轨道 D：呼吸轨（Looping Breath）
         protected Tween _breathTween;
+
+        // 轨道 E：位置轨（SlideIn/MoveTo，独立于 Alpha）
+        protected Tween _moveTween;
 
         // =========================================================
         //  虚拟倍率（Virtual Multipliers）- 用于轨道 C 和 D 的合成
@@ -396,9 +399,10 @@ namespace SpaceTUI
                 return;
             }
 
-            // Kill 轨道 A 和 B
+            // Kill 轨道 A、B、E
             _stateTween?.Kill();
             _rotationTween?.Kill();
+            _moveTween?.Kill();
 
             // 设置目标旋转
             float targetY = targetRotationY ?? _targetRotationY;
@@ -409,12 +413,14 @@ namespace SpaceTUI
             _canvasGroup.alpha = 0f;
             transform.localPosition = _slideInStartPosition - Vector3.up * _slideInOffset;
 
-            // 轨道 A：状态转换
+            // 轨道 A：只管 alpha
             _stateTween = DOTween.Sequence();
             _stateTween.Join(DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 1f, _fadeDuration)
                 .SetEase(_fadeInEase));
-            _stateTween.Join(transform.DOLocalMove(_slideInStartPosition, _fadeDuration).SetEase(_fadeInEase));
             _stateTween.OnComplete(() => IsVisible = true);
+
+            // 轨道 E：位置 slide-in
+            _moveTween = transform.DOLocalMove(_slideInStartPosition, _fadeDuration).SetEase(_fadeInEase);
 
             Debug.Log("<color=cyan>[SpaceUIAnimator]</color> 淡入动画开始");
         }
@@ -432,21 +438,23 @@ namespace SpaceTUI
                 return;
             }
 
-            // Kill 轨道 A 和 B
+            // Kill 轨道 A、B、E
             _stateTween?.Kill();
             _rotationTween?.Kill();
+            _moveTween?.Kill();
 
-            // 轨道 A：状态转换
+            // 轨道 A：只管 alpha
             _stateTween = DOTween.Sequence();
             _stateTween.Join(DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 0f, _fadeDuration)
                 .SetEase(_fadeOutEase));
-            _stateTween.Join(transform.DOLocalMove(_slideInStartPosition - Vector3.up * _slideInOffset, _fadeDuration).SetEase(_fadeOutEase));
             _stateTween.OnComplete(() =>
             {
                 IsVisible = false;
-                _canvasGroup.blocksRaycasts = false;  // 动画完成后才禁用鼠标拦截
-                // gameObject.SetActive(false);  // 不再禁用，保持 active 以便接收事件
+                _canvasGroup.blocksRaycasts = false;
             });
+
+            // 轨道 E：位置 slide-out
+            _moveTween = transform.DOLocalMove(_slideInStartPosition - Vector3.up * _slideInOffset, _fadeDuration).SetEase(_fadeOutEase);
 
             Debug.Log("<color=cyan>[SpaceUIAnimator]</color> 淡出动画开始");
         }
@@ -499,6 +507,29 @@ namespace SpaceTUI
             _canvasGroup.alpha = 0f;
             _canvasGroup.blocksRaycasts = false;
             IsVisible = false;
+        }
+
+        /// <summary>
+        /// 带动画移动到目标位置（轨道 E），同步更新 FadeIn/FadeOut 基准点
+        /// </summary>
+        public virtual void MoveTo(Vector2 anchoredPosition, float duration = 0.2f, Ease ease = Ease.OutCubic)
+        {
+            _moveTween?.Kill();
+            var rect = GetComponent<RectTransform>();
+            _moveTween = rect.DOAnchorPos(anchoredPosition, duration).SetEase(ease).OnComplete(() =>
+            {
+                _slideInStartPosition = transform.localPosition;
+            });
+        }
+
+        /// <summary>
+        /// 立即跳到目标位置（无动画），同步更新 FadeIn/FadeOut 基准点
+        /// </summary>
+        public virtual void TeleportTo(Vector2 anchoredPosition)
+        {
+            _moveTween?.Kill();
+            GetComponent<RectTransform>().anchoredPosition = anchoredPosition;
+            _slideInStartPosition = transform.localPosition;
         }
 
         /// <summary>

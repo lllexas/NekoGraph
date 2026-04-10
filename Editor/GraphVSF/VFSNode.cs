@@ -190,7 +190,15 @@ public class VFSNode : BaseNode<VFSNodeData>
         // 写临时文件到项目 Temp 目录
         string tempDir = Path.Combine(Application.dataPath, "..", "Temp", "VFSEdit");
         Directory.CreateDirectory(tempDir);
-        _tempFilePath = Path.Combine(tempDir, $"VFSNode_{TypedData.NodeID}.json");
+
+        // 根据 ContentKind 决定文件后缀
+        string fileExtension = TypedData.GetEffectiveContentKind() switch
+        {
+            VFSContentKind.Csv => ".csv",
+            VFSContentKind.UnityObject => ".json",
+            _ => ".json"
+        };
+        _tempFilePath = Path.Combine(tempDir, $"VFSNode_{TypedData.NodeID}{fileExtension}");
 
         // 若 DataJson 为空，写入类型模板（如有注册）
         string content = TypedData.GetInlineText();
@@ -248,17 +256,25 @@ public class VFSNode : BaseNode<VFSNodeData>
     }
 
     /// <summary>
-    /// 根据注册的 DataType 生成 JSON 模板（字段全填默认值）喵~
+    /// 根据 DataType 生成对应的内容模板喵~
     /// </summary>
     private string BuildTemplate()
     {
+        var dataType = ExeRegistry.GetDataType(TypedData.Extension);
+
         if (TypedData.GetEffectiveContentKind() == VFSContentKind.Csv)
+        {
+            // ChoiceData: 单列选项列表
+            if (dataType != null && dataType.Name == "ChoiceData")
+                return "选项1\n选项2\n选项3";
+
+            // 其他 CSV 类型的通用模板
             return "id,text\nsample,hello";
+        }
 
         if (TypedData.GetEffectiveContentKind() == VFSContentKind.UnityObject)
             return string.Empty;
 
-        var dataType = ExeRegistry.GetDataType(TypedData.Extension);
         if (dataType == null) return "{}";
         try
         {
@@ -289,6 +305,9 @@ public class VFSNode : BaseNode<VFSNodeData>
 
         if (!isFile) return;
 
+        // 自动推断 ContentKind（从 DataType 的 [VFSContentKind] Attribute）
+        AutoDetectContentKind();
+
         var dataType = ExeRegistry.GetDataType(TypedData.Extension);
         string kindText = $"载荷：{TypedData.GetEffectiveContentKind()} / {TypedData.GetEffectiveContentSource()}";
         if (dataType != null)
@@ -302,6 +321,22 @@ public class VFSNode : BaseNode<VFSNodeData>
         else
         {
             _dataTypeHintLabel.text = $"{kindText}\n未注册类型（自由载荷）";
+        }
+    }
+
+    /// <summary>
+    /// 根据 EXEHandler 注册的 DataType 上的 [VFSContentKind] Attribute 自动推断 ContentKind
+    /// </summary>
+    private void AutoDetectContentKind()
+    {
+        var dataType = ExeRegistry.GetDataType(TypedData.Extension);
+        if (dataType == null) return;
+
+        var detectedKind = ExeRegistry.GetContentKindFromDataType(dataType);
+        if (detectedKind.HasValue)
+        {
+            TypedData.ContentKind = detectedKind.Value;
+            _contentKindField.SetValueWithoutNotify(ToKindOption(TypedData.ContentKind));
         }
     }
 

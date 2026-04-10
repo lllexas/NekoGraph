@@ -192,6 +192,17 @@ public static class ExeRegistry
     }
 
     /// <summary>
+    /// 获取 DataType 对应的内容格式（若类型上标注了 [VFSContentKind]）喵~
+    /// 未标注时返回 null。
+    /// </summary>
+    public static VFSContentKind? GetContentKindFromDataType(Type dataType)
+    {
+        if (dataType == null) return null;
+        var attr = dataType.GetCustomAttribute<VFSContentKindAttribute>();
+        return attr?.Kind;
+    }
+
+    /// <summary>
     /// 获取所有已注册的后缀名喵~
     /// </summary>
     public static List<string> GetAllSuffixes()
