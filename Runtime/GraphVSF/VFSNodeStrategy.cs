@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace NekoGraph
 {
@@ -32,11 +33,11 @@ public class VFSNodeStrategy : NodeStrategy
         {
             if (ExeRegistry.TryGetHandler(vfsNode.Extension, out var handler))
             {
+                // continueAction 在 handler 返回前构建，此时还不知道是否 Wait，先用占位喵~
+                List<string> suspendedIds = null;
                 try
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
-                    // continueAction 在 handler 返回前构建，此时还不知道是否 Wait，先用占位喵~
-                    List<string> suspendedIds = null;
                     System.Action continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
                     result = handler.Invoke(content, context, pack, runner, packInstanceID, continueAction);
                 }
