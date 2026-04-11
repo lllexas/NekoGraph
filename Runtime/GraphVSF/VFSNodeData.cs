@@ -93,8 +93,10 @@ public class VFSNodeData : BaseNodeData
     /// <summary>
     /// 历史兼容字段喵~
     /// 旧节点仍可能把文本放在 DataJson 中。
+    /// 已被 InlineText 取代，请勿继续使用！
     /// </summary>
-    [Tooltip("历史兼容：旧版 DataJson")]
+    [Tooltip("历史兼容：旧版 DataJson（已废弃，请用 InlineText）")]
+    [Obsolete("DataJson 已废弃，请使用 InlineText 或 VFSContentResolver 提供的统一解析接口", false)]
     [TextArea(4, 8)]
     public string DataJson;
 

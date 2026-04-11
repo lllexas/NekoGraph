@@ -119,11 +119,11 @@ public class GraphAnalyser
 
         foreach (var segment in segments)
         {
-            if (current.OutputConnections == null) return null;
+            if (current is not VFSNodeData vfs || vfs.ChildNodeIDs == null) return null;
             BaseNodeData next = null;
-            foreach (var conn in current.OutputConnections)
+            foreach (var childId in vfs.ChildNodeIDs)
             {
-                if (pack.Nodes.TryGetValue(conn.TargetNodeID, out var child) &&
+                if (pack.Nodes.TryGetValue(childId, out var child) &&
                     GetSegmentName(child) == segment)
                 {
                     next = child;
@@ -142,12 +142,13 @@ public class GraphAnalyser
     private static List<BaseNodeData> BfsGetChildren(BasePackData pack, string path)
     {
         var parent = BfsGetNode(pack, path);
-        if (parent?.OutputConnections == null) return new List<BaseNodeData>();
+        if (parent is not VFSNodeData parentVfs || parentVfs.ChildNodeIDs == null)
+            return new List<BaseNodeData>();
 
         var result = new List<BaseNodeData>();
-        foreach (var conn in parent.OutputConnections)
+        foreach (var childId in parentVfs.ChildNodeIDs)
         {
-            if (!pack.Nodes.TryGetValue(conn.TargetNodeID, out var child)) continue;
+            if (!pack.Nodes.TryGetValue(childId, out var child)) continue;
             if (child is VFSNodeData vfs && !vfs.IsEnabled) continue;
             result.Add(child);
         }
@@ -380,8 +381,19 @@ public class GraphAnalyser
 
         if (!string.IsNullOrEmpty(parentID) && pack.Nodes.TryGetValue(parentID, out var parent))
         {
+            // 维护 OutputConnections（兼容编辑器）
             if (!parent.OutputConnections.Exists(c => c.TargetNodeID == node.NodeID))
                 parent.OutputConnections.Add(new ConnectionData(0, node.NodeID, 0));
+
+            // 维护 ChildNodeIDs（运行时）
+            if (parent is VFSNodeData parentVfs)
+            {
+                parentVfs.ChildNodeIDs ??= new List<string>();
+                if (!parentVfs.ChildNodeIDs.Contains(node.NodeID))
+                    parentVfs.ChildNodeIDs.Add(node.NodeID);
+            }
+
+            // 维护子节点的 ParentNodeID
             if (node is VFSNodeData vfs)
                 vfs.ParentNodeID = parentID;
         }
@@ -391,10 +403,32 @@ public class GraphAnalyser
 
     private static bool RemoveNode(BasePackData pack, string nodeID)
     {
-        if (!pack.Nodes.Remove(nodeID)) return false;
+        // 先获取被删节点（在 Remove 之前）
+        if (!pack.Nodes.TryGetValue(nodeID, out var nodeToRemove)) return false;
+
+        // 1. 从所有节点的 OutputConnections 中移除（兼容编辑器）
         foreach (var n in pack.Nodes.Values)
             n.OutputConnections?.RemoveAll(c => c.TargetNodeID == nodeID);
-        return true;
+
+        // 2. 从所有节点的 ChildNodeIDs 中移除
+        foreach (var n in pack.Nodes.Values)
+        {
+            if (n is VFSNodeData vfs && vfs.ChildNodeIDs != null)
+                vfs.ChildNodeIDs.Remove(nodeID);
+        }
+
+        // 3. 清除被删节点的子节点的 ParentNodeID（防止孤儿节点）
+        if (nodeToRemove is VFSNodeData removedVfs && removedVfs.ChildNodeIDs != null)
+        {
+            foreach (var childId in removedVfs.ChildNodeIDs)
+            {
+                if (pack.Nodes.TryGetValue(childId, out var child) && child is VFSNodeData childVfs)
+                    childVfs.ParentNodeID = null;
+            }
+        }
+
+        // 4. 最后删除节点
+        return pack.Nodes.Remove(nodeID);
     }
 
     /// <summary>
@@ -550,6 +584,375 @@ public class GraphAnalyser
             }
         }
         return result;
+    }
+
+    // =========================================================
+    //  Swap 操作喵~
+    // =========================================================
+
+    /// <summary>
+    /// 交换两个节点的位置（只支持同父节点的同级交换）喵~
+    /// </summary>
+    /// <param name="packID">Pack ID</param>
+    /// <param name="pathA">节点A路径</param>
+    /// <param name="pathB">节点B路径</param>
+    /// <param name="subjectLevel">主体等级（强制传入，不允许默认值）喵~</param>
+    public bool SwapNodes(string packID, string pathA, string pathB, int subjectLevel)
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var nodeA = BfsGetNode(pack, pathA) as VFSNodeData;
+        var nodeB = BfsGetNode(pack, pathB) as VFSNodeData;
+
+        if (nodeA == null)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：节点A '{pathA}' 不存在");
+            return false;
+        }
+
+        if (nodeB == null)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：节点B '{pathB}' 不存在");
+            return false;
+        }
+
+        // 验证同父
+        if (nodeA.ParentNodeID != nodeB.ParentNodeID)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：节点A和节点B不是同级节点（父节点不同）");
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(nodeA.ParentNodeID))
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：不能交换根节点");
+            return false;
+        }
+
+        // 获取父节点
+        if (!pack.Nodes.TryGetValue(nodeA.ParentNodeID, out var parent) || parent is not VFSNodeData parentVfs)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：父节点不存在或类型错误");
+            return false;
+        }
+
+        // 在 ChildNodeIDs 中交换位置
+        var idxA = parentVfs.ChildNodeIDs?.IndexOf(nodeA.NodeID) ?? -1;
+        var idxB = parentVfs.ChildNodeIDs?.IndexOf(nodeB.NodeID) ?? -1;
+
+        if (idxA == -1 || idxB == -1)
+        {
+            Debug.LogError($"[GraphAnalyser] Swap 失败：节点不在父节点的 ChildNodeIDs 中");
+            return false;
+        }
+
+        // 执行交换
+        parentVfs.ChildNodeIDs[idxA] = nodeB.NodeID;
+        parentVfs.ChildNodeIDs[idxB] = nodeA.NodeID;
+
+        // 同时更新 OutputConnections 保持兼容
+        var connA = parent.OutputConnections.FindIndex(c => c.TargetNodeID == nodeA.NodeID);
+        var connB = parent.OutputConnections.FindIndex(c => c.TargetNodeID == nodeB.NodeID);
+
+        if (connA != -1 && connB != -1)
+        {
+            var temp = parent.OutputConnections[connA];
+            parent.OutputConnections[connA] = parent.OutputConnections[connB];
+            parent.OutputConnections[connB] = temp;
+        }
+
+        Debug.Log($"[GraphAnalyser] Swap 成功：'{pathA}' <-> '{pathB}'");
+        return true;
+    }
+
+    // =========================================================
+    //  载荷操作砖块方法喵~
+    //  注意：只操作载荷内容，不修改节点路径/名称
+    // =========================================================
+
+    /// <summary>
+    /// 清空节点载荷喵~
+    /// 根据节点类型清空对应字段：InlineText 或 ReferencePath
+    /// </summary>
+    public bool ClearPayload(string packID, string path, int subjectLevel)
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] ClearPayload 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var node = BfsGetNode(pack, path) as VFSNodeData;
+        if (node == null)
+        {
+            Debug.LogWarning($"[GraphAnalyser] ClearPayload：节点 '{path}' 不存在");
+            return false;
+        }
+
+        // 根据 ContentSource 清空对应字段
+        if (node.ContentSource == VFSContentSource.Inline)
+        {
+            node.InlineText = null;
+            node.DataJson = null; // 兼容旧数据
+            Debug.Log($"[GraphAnalyser] ClearPayload：清空 InlineText '{path}'");
+        }
+        else if (node.ContentSource == VFSContentSource.Reference)
+        {
+            node.ReferencePath = null;
+            node.AssetGuid = null;
+            node.AssetPath = null;
+            Debug.Log($"[GraphAnalyser] ClearPayload：清空 Reference '{path}'");
+        }
+        else
+        {
+            Debug.LogWarning($"[GraphAnalyser] ClearPayload：未知 ContentSource '{node.ContentSource}'");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 设置 Inline 载荷喵~
+    /// 要求节点必须是 Inline 类型
+    /// </summary>
+    public bool SetInlinePayload(string packID, string path, string content, int subjectLevel)
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SetInlinePayload 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var node = BfsGetNode(pack, path) as VFSNodeData;
+        if (node == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SetInlinePayload 失败：节点 '{path}' 不存在");
+            return false;
+        }
+
+        // 安全检查：必须是 Inline 类型
+        if (node.ContentSource != VFSContentSource.Inline)
+        {
+            Debug.LogError($"[GraphAnalyser] SetInlinePayload 失败：节点 '{path}' 是 Reference 类型，不能设置 Inline 载荷");
+            return false;
+        }
+
+        node.InlineText = content;
+        Debug.Log($"[GraphAnalyser] SetInlinePayload：'{path}' = '{content}'");
+        return true;
+    }
+
+    /// <summary>
+    /// 设置 Reference 载荷喵~
+    /// 要求节点必须是 Reference 类型
+    /// </summary>
+    public bool SetReferencePayload(string packID, string path, string referencePath, int subjectLevel)
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SetReferencePayload 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var node = BfsGetNode(pack, path) as VFSNodeData;
+        if (node == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SetReferencePayload 失败：节点 '{path}' 不存在");
+            return false;
+        }
+
+        // 安全检查：必须是 Reference 类型
+        if (node.ContentSource != VFSContentSource.Reference)
+        {
+            Debug.LogError($"[GraphAnalyser] SetReferencePayload 失败：节点 '{path}' 是 Inline 类型，不能设置 Reference 载荷");
+            return false;
+        }
+
+        node.ReferencePath = referencePath;
+        Debug.Log($"[GraphAnalyser] SetReferencePayload：'{path}' = '{referencePath}'");
+        return true;
+    }
+
+    /// <summary>
+    /// 交换两个节点的载荷喵~
+    /// 要求：
+    /// 1. 两个节点都存在
+    /// 2. 必须是同 ContentSource（都是 Inline 或都是 Reference）
+    /// 3. 如果是 Reference，ContentKind 也必须相同
+    /// </summary>
+    public bool SwapPayload(string packID, string pathA, string pathB, int subjectLevel)
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SwapPayload 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var nodeA = BfsGetNode(pack, pathA) as VFSNodeData;
+        var nodeB = BfsGetNode(pack, pathB) as VFSNodeData;
+
+        if (nodeA == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SwapPayload 失败：节点A '{pathA}' 不存在");
+            return false;
+        }
+
+        if (nodeB == null)
+        {
+            Debug.LogError($"[GraphAnalyser] SwapPayload 失败：节点B '{pathB}' 不存在");
+            return false;
+        }
+
+        // 安全检查1：ContentSource 必须相同
+        if (nodeA.ContentSource != nodeB.ContentSource)
+        {
+            Debug.LogError($"[GraphAnalyser] SwapPayload 失败：节点A是{nodeA.ContentSource}，节点B是{nodeB.ContentSource}，类型不匹配");
+            return false;
+        }
+
+        // 安全检查2：如果是 Reference，ContentKind 也必须相同
+        if (nodeA.ContentSource == VFSContentSource.Reference && nodeA.ContentKind != nodeB.ContentKind)
+        {
+            Debug.LogError($"[GraphAnalyser] SwapPayload 失败：Reference 节点的 ContentKind 不匹配（A={nodeA.ContentKind}, B={nodeB.ContentKind}）");
+            return false;
+        }
+
+        // 执行载荷交换
+        if (nodeA.ContentSource == VFSContentSource.Inline)
+        {
+            // 交换 InlineText
+            var tempText = nodeA.InlineText;
+            nodeA.InlineText = nodeB.InlineText;
+            nodeB.InlineText = tempText;
+
+            // 同时交换 DataJson（兼容旧数据）
+            var tempJson = nodeA.DataJson;
+            nodeA.DataJson = nodeB.DataJson;
+            nodeB.DataJson = tempJson;
+        }
+        else // Reference
+        {
+            // 交换 Reference 相关字段
+            var tempRef = nodeA.ReferencePath;
+            nodeA.ReferencePath = nodeB.ReferencePath;
+            nodeB.ReferencePath = tempRef;
+
+            var tempGuid = nodeA.AssetGuid;
+            nodeA.AssetGuid = nodeB.AssetGuid;
+            nodeB.AssetGuid = tempGuid;
+
+            var tempAssetPath = nodeA.AssetPath;
+            nodeA.AssetPath = nodeB.AssetPath;
+            nodeB.AssetPath = tempAssetPath;
+        }
+
+        Debug.Log($"[GraphAnalyser] SwapPayload 成功：'{pathA}' <-> '{pathB}'");
+        return true;
+    }
+
+    /// <summary>
+    /// 设置节点载荷（泛型版本）喵~
+    /// 自动根据扩展名确定数据类型，验证并序列化
+    /// </summary>
+    public bool TrySetPayload<T>(string packID, string path, T payload, int subjectLevel) where T : class
+    {
+        var pack = Resolve(packID, write: true, subjectLevel: subjectLevel);
+        if (pack == null)
+        {
+            Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：Pack '{packID}' 不存在或无写入权限");
+            return false;
+        }
+
+        var node = BfsGetNode(pack, path) as VFSNodeData;
+        if (node == null)
+        {
+            Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：节点 '{path}' 不存在");
+            return false;
+        }
+
+        // 1. 提取扩展名
+        var suffix = string.IsNullOrEmpty(node.Extension) ? "" : node.Extension.ToLowerInvariant();
+
+        // 2. 获取期望的数据类型
+        var expectedType = ExeRegistry.GetDataType(suffix);
+        if (expectedType == null)
+        {
+            Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：后缀 '{suffix}' 未注册数据类型");
+            return false;
+        }
+
+        // 3. 验证 T 是否兼容（T 是期望类型的子类或同一类型）
+        var payloadType = typeof(T);
+        if (!expectedType.IsAssignableFrom(payloadType))
+        {
+            Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：类型不匹配。期望 '{expectedType.Name}'，实际 '{payloadType.Name}'");
+            return false;
+        }
+
+        // 4. 根据 ContentSource 设置
+        if (node.ContentSource == VFSContentSource.Inline)
+        {
+            // 序列化 payload 到字符串
+            string content;
+            try
+            {
+                // 如果是字符串类型直接存
+                if (payload is string strPayload)
+                {
+                    content = strPayload;
+                }
+                else
+                {
+                    // 否则 JSON 序列化
+                    content = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：序列化错误 - {e.Message}");
+                return false;
+            }
+
+            node.InlineText = content;
+            Debug.Log($"[GraphAnalyser] TrySetPayload：'{path}' InlineText 已更新");
+        }
+        else if (node.ContentSource == VFSContentSource.Reference)
+        {
+            // Reference 模式：payload 必须是字符串（路径）或 UnityObject
+            if (payload is string refPath)
+            {
+                node.ReferencePath = refPath;
+                Debug.Log($"[GraphAnalyser] TrySetPayload：'{path}' ReferencePath 已更新为 '{refPath}'");
+            }
+            else if (payload is UnityEngine.Object unityObj)
+            {
+                node.AssetGuid = UnityEditor.AssetDatabase.GetAssetPath(unityObj);
+                node.UnityObjectTypeName = unityObj.GetType().AssemblyQualifiedName;
+                Debug.Log($"[GraphAnalyser] TrySetPayload：'{path}' UnityObject 引用已更新");
+            }
+            else
+            {
+                Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：Reference 模式下 payload 必须是字符串路径或 UnityObject");
+                return false;
+            }
+        }
+        else
+        {
+            Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：未知的 ContentSource '{node.ContentSource}'");
+            return false;
+        }
+
+        return true;
     }
 
     // =========================================================
