@@ -3,6 +3,9 @@ using System.IO;
 using Newtonsoft.Json;
 using UnityEngine;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// VFS 载荷内容类型喵~
 /// </summary>
@@ -216,4 +219,6 @@ public static class VFSContentResolver
             Path.Combine(Application.streamingAssetsPath, normalized + ".txt")
         };
     }
+}
+
 }

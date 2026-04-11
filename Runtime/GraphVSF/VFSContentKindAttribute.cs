@@ -1,5 +1,8 @@
 using System;
 
+namespace NekoGraph
+{
+
 /// <summary>
 /// VFS 内容格式声明 - 在数据类型上标注载荷格式喵~
 ///
@@ -24,4 +27,6 @@ public class VFSContentKindAttribute : Attribute
     {
         Kind = kind;
     }
+}
+
 }

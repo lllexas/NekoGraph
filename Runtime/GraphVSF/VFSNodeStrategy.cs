@@ -29,16 +29,17 @@ public class VFSNodeStrategy : NodeStrategy
 
         // 文件节点：查 ExeRegistry 执行对应后缀的处理器喵~
         var result = HandleResult.Push; // 默认继续传播
+        List<string> suspendedIds = null;
+        System.Action continueAction = null;
         if (vfsNode.IsFile && vfsNode.IsEnabled)
         {
             if (ExeRegistry.TryGetHandler(vfsNode.Extension, out var handler))
             {
                 // continueAction 在 handler 返回前构建，此时还不知道是否 Wait，先用占位喵~
-                List<string> suspendedIds = null;
                 try
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
-                    System.Action continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
+                    continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
                     result = handler.Invoke(content, context, pack, runner, packInstanceID, continueAction);
                 }
                 catch (Exception e)
