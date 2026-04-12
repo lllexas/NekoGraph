@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using NekoGraph;
@@ -30,7 +30,6 @@ public class GraphAnalyser
     // =========================================================
 
     /// <summary>
-    /// 直接引用 UserModel.PackDataDict，零副本，读档后自动切换到新存档喵~
     /// </summary>
     private Dictionary<string, BasePackData> _packs;
 
@@ -42,7 +41,7 @@ public class GraphAnalyser
     /// </summary>
     private string _defaultPackId = "default";
 
-    public GraphAnalyser(Dictionary<string, BasePackData> packs = null, int subjectLevel = PackAccessSubjects.Player)
+    public GraphAnalyser(Dictionary<string, BasePackData> packs, int subjectLevel = PackAccessSubjects.Player)
     {
         _subjectLevel = subjectLevel;
         SetPackDataDict(packs);
@@ -119,9 +118,23 @@ public class GraphAnalyser
 
         foreach (var segment in segments)
         {
-            if (current is not VFSNodeData vfs || vfs.ChildNodeIDs == null) return null;
+            // 获取子节点ID列表
+            IEnumerable<string> childIds = null;
+            if (current is VFSNodeData vfs && vfs.ChildNodeIDs != null)
+            {
+                childIds = vfs.ChildNodeIDs;
+            }
+            // RootNodeData 的 ChildNodeIDs 在 "_" 字段
+            else if (current.GetType().Name == "RootNodeData")
+            {
+                var underscoreField = current.GetType().GetField("_");
+                if (underscoreField != null)
+                    childIds = underscoreField.GetValue(current) as List<string>;
+            }
+
+            if (childIds == null) return null;
             BaseNodeData next = null;
-            foreach (var childId in vfs.ChildNodeIDs)
+            foreach (var childId in childIds)
             {
                 if (pack.Nodes.TryGetValue(childId, out var child) &&
                     GetSegmentName(child) == segment)
@@ -285,7 +298,6 @@ public class GraphAnalyser
         if (existing is VFSNodeData existingVfs)
         {
             existingVfs.InlineText = content;
-            existingVfs.DataJson = content;
             existingVfs.ContentSource = VFSContentSource.Inline;
             existingVfs.ReferencePath = "";
             existingVfs.AssetGuid = "";
@@ -297,7 +309,11 @@ public class GraphAnalyser
                 existingVfs.ContentKind = VFSContentKind.Json;
             return true;
         }
-        if (existing != null) return false; // 目录，不能直接写
+        if (existing != null)
+        {
+            Debug.LogError($"[GraphAnalyser] WriteFile 失败：路径  + path +  已存在且是" + (existing is VFSNodeData vfs ? (vfs.IsDirectory ? "目录" : "文件") : "未知类型") + "，不能作为文件写入。如需创建目录请使用 CreateDirectory。");
+            return false;
+        }
 
         string parentPath = VFSPathResolver.GetParentPath(path);
         if (!EnsureDirectory(pack, parentPath))
@@ -321,7 +337,6 @@ public class GraphAnalyser
             Name = dot > 0 ? fileName.Substring(0, dot) : fileName,
             Extension = dot > 0 ? fileName.Substring(dot) : "",
             InlineText = content,
-            DataJson = content,
             ContentSource = VFSContentSource.Inline,
             ReferencePath = "",
             AssetGuid = "",
@@ -392,6 +407,22 @@ public class GraphAnalyser
                 if (!parentVfs.ChildNodeIDs.Contains(node.NodeID))
                     parentVfs.ChildNodeIDs.Add(node.NodeID);
             }
+            // RootNodeData 的 ChildNodeIDs 字段名叫 "_"
+            else if (parent.GetType().Name == "RootNodeData")
+            {
+                var underscoreField = parent.GetType().GetField("_");
+                if (underscoreField != null)
+                {
+                    var childIds = underscoreField.GetValue(parent) as List<string>;
+                    if (childIds == null)
+                    {
+                        childIds = new List<string>();
+                        underscoreField.SetValue(parent, childIds);
+                    }
+                    if (!childIds.Contains(node.NodeID))
+                        childIds.Add(node.NodeID);
+                }
+            }
 
             // 维护子节点的 ParentNodeID
             if (node is VFSNodeData vfs)
@@ -441,7 +472,11 @@ public class GraphAnalyser
 
         var existing = BfsGetNode(pack, path);
         if (existing is VFSNodeData vfs) return vfs.IsDirectory;
-        if (existing != null) return false; // 路径被文件占用
+        if (existing != null)
+        {
+            Debug.LogError($"[GraphAnalyser] EnsureDirectory 失败：路径 {path} 已被文件占用，不能作为目录。");
+            return false;
+        }
 
         string parentPath = VFSPathResolver.GetParentPath(path);
         if (!EnsureDirectory(pack, parentPath)) return false;
@@ -481,6 +516,29 @@ public class GraphAnalyser
     /// <param name="path">节点路径</param>
     /// <param name="subjectLevel">主体等级（强制传入，不允许默认值）喵~</param>
     public BaseNodeData GetNode(string path, int subjectLevel) => GetNode(_defaultPackId, path, subjectLevel);
+
+    /// <summary>
+    /// 通过完整路径查询节点喵~（格式：packId:/path）
+    /// </summary>
+    /// <param name="fullPath">完整路径，如 "inventory:/0.item"</param>
+    /// <param name="subjectLevel">主体等级</param>
+    public BaseNodeData GetNodeByFullPath(string fullPath, int subjectLevel)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath))
+            return null;
+
+        var parts = fullPath.Split(':', 2);
+        if (parts.Length != 2)
+            return null;
+
+        var packId = parts[0];
+        var path = parts[1];
+
+        if (!path.StartsWith("/"))
+            path = "/" + path;
+
+        return GetNode(packId, path, subjectLevel);
+    }
 
     /// <summary>
     /// 获取路径下的直接子节点列表喵~
@@ -699,7 +757,6 @@ public class GraphAnalyser
         if (node.ContentSource == VFSContentSource.Inline)
         {
             node.InlineText = null;
-            node.DataJson = null; // 兼容旧数据
             Debug.Log($"[GraphAnalyser] ClearPayload：清空 InlineText '{path}'");
         }
         else if (node.ContentSource == VFSContentSource.Reference)
@@ -835,10 +892,6 @@ public class GraphAnalyser
             nodeA.InlineText = nodeB.InlineText;
             nodeB.InlineText = tempText;
 
-            // 同时交换 DataJson（兼容旧数据）
-            var tempJson = nodeA.DataJson;
-            nodeA.DataJson = nodeB.DataJson;
-            nodeB.DataJson = tempJson;
         }
         else // Reference
         {

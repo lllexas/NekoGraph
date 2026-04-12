@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -91,16 +91,6 @@ public class VFSNodeData : BaseNodeData
     public string UnityObjectTypeName;
 
     /// <summary>
-    /// 历史兼容字段喵~
-    /// 旧节点仍可能把文本放在 DataJson 中。
-    /// 已被 InlineText 取代，请勿继续使用！
-    /// </summary>
-    [Tooltip("历史兼容：旧版 DataJson（已废弃，请用 InlineText）")]
-    [Obsolete("DataJson 已废弃，请使用 InlineText 或 VFSContentResolver 提供的统一解析接口", false)]
-    [TextArea(4, 8)]
-    public string DataJson;
-
-    /// <summary>
     /// 是否启用（被禁用的节点在 ls 时会被跳过）
     /// </summary>
     [Tooltip("是否启用")]
@@ -138,7 +128,7 @@ public class VFSNodeData : BaseNodeData
 
     public string GetInlineText()
     {
-        return !string.IsNullOrWhiteSpace(InlineText) ? InlineText : (DataJson ?? string.Empty);
+        return InlineText;
     }
 
     public VFSContentKind GetEffectiveContentKind()

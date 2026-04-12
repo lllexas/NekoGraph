@@ -13,7 +13,7 @@ internal static class VfsCommand
         bool IsDirectory,
         bool IsFile,
         int ChildCount,
-        string? DataJson);
+        string? InlineText);
 
     public static int ExecuteList(string packId, string path)
     {
@@ -186,7 +186,7 @@ internal static class VfsCommand
 
             nodeObject["Name"] = name;
             nodeObject["Extension"] = extension;
-            nodeObject["DataJson"] = dataJson;
+            nodeObject["InlineText"] = dataJson;
             nodeObject["IsEnabled"] = true;
             nodeObject["ParentNodeID"] = GetParentPath(path) == "/" ? context.Pack.RootNodeId : ResolveNodeId(context, GetParentPath(path));
 
@@ -322,7 +322,7 @@ internal static class VfsCommand
             ["$type"] = "VFSNodeData, NekoGraph.Runtime",
             ["ParentNodeID"] = null,
             ["ChildNodeIDs"] = new JsonArray(),
-            ["DataJson"] = dataJson is null ? null : JsonValue.Create(dataJson),
+            ["InlineText"] = dataJson is null ? null : JsonValue.Create(dataJson),
             ["IsEnabled"] = true,
             ["Description"] = "",
             ["MimeType"] = null,
@@ -558,7 +558,7 @@ internal static class VfsCommand
         var node = context.Nodes[nodeId]?.AsObject() ?? throw new InvalidOperationException($"Node JSON was not found: {nodeId}");
         var extension = node["Extension"]?.GetValue<string>() ?? "";
         var isDirectory = IsDirectory(node, nodeId, context);
-        var dataJson = node["DataJson"]?.GetValue<string>();
+        var dataJson = node["InlineText"]?.GetValue<string>();
         return new VfsNodeReport(
             nodeId,
             node["Name"]?.GetValue<string>() ?? nodeId,

@@ -111,7 +111,6 @@ public class VFSNode : BaseNode<VFSNodeData>
         _inlineTextField.RegisterValueChangedCallback(evt =>
         {
             TypedData.InlineText = evt.newValue;
-            TypedData.DataJson = evt.newValue;
         });
         _inlineTextField.RegisterCallback<FocusOutEvent>(_ => RefreshValidationMessage());
         foldout.Add(_inlineTextField);
@@ -230,7 +229,6 @@ public class VFSNode : BaseNode<VFSNodeData>
         }
         string json = File.ReadAllText(_tempFilePath, System.Text.Encoding.UTF8);
         TypedData.InlineText = json;
-        TypedData.DataJson = json;
         _inlineTextField.SetValueWithoutNotify(json);
         _lastWriteTimeTicks = File.GetLastWriteTime(_tempFilePath).Ticks;
         _syncStatusLabel.text = $"已同步 {System.DateTime.Now:HH:mm:ss}";
@@ -249,7 +247,6 @@ public class VFSNode : BaseNode<VFSNodeData>
         _lastWriteTimeTicks = current;
         string json = File.ReadAllText(_tempFilePath, System.Text.Encoding.UTF8);
         TypedData.InlineText = json;
-        TypedData.DataJson = json;
         _inlineTextField.SetValueWithoutNotify(json);
         _syncStatusLabel.text = $"自动同步 {System.DateTime.Now:HH:mm:ss}";
         RefreshValidationMessage();
@@ -347,7 +344,6 @@ public class VFSNode : BaseNode<VFSNodeData>
         TypedData.ContentKind   = FromKindOption(_contentKindField.value);
         TypedData.ContentSource = FromSourceOption(_contentSourceField.value);
         TypedData.InlineText    = _inlineTextField.value;
-        TypedData.DataJson      = _inlineTextField.value;
         TypedData.Description   = _descriptionField.value;
         TypedData.IsEnabled     = _enabledToggle.value;
         RefreshValidationMessage();

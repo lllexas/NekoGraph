@@ -274,13 +274,13 @@ internal static class HelpText
             例：.\nekograph.cmd --vfs --ls equipment /
 
         --vfs --show <packid> <path>
-            显示某个 VFS 节点的静态字段，包括 Name / Extension / DataJson。
+            显示某个 VFS 节点的静态字段，包括 Name / Extension / InlineText。
 
         --vfs --mkdir <packid> <path>
             创建 VFS 目录。父目录不存在时会自动逐层补齐。
 
         --vfs --write <packid> <path> <datajson>
-            写入一个 VFS 文件节点。若文件已存在，则覆盖其 DataJson；
+            写入一个 VFS 文件节点。若文件已存在，则覆盖其 InlineText；
             若父目录不存在，则自动创建。
             例：.\nekograph.cmd --vfs --write equipment /mainslot/1.equipid "{ ""Id"": ""ZombieFistsSO"" }"
 

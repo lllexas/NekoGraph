@@ -119,11 +119,11 @@ public static class ExeRegistry
                 }
                 else if (parameters[0].ParameterType == typeof(string))
                 {
-                    var legacyHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string>)
-                        Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string>), method);
+                    var legacyHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string, System.Action>)
+                        Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string, System.Action>), method);
                     _handlers[suffix] = (content, context, pack, runner, packInstanceID, continueAction) =>
                     {
-                        legacyHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID);
+                        legacyHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID, continueAction);
                         return HandleResult.Push;
                     };
                 }
