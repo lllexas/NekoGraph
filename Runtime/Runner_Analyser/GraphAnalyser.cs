@@ -603,6 +603,95 @@ public class GraphAnalyser
     }
 
     /// <summary>
+    /// 获取或创建 Pack 喵~
+    /// 若 Pack 不存在，则自动创建、补 Root、注册进当前 PackTable。
+    /// 只有具备写权限的主体才允许创建喵~
+    /// </summary>
+    public BasePackData GetOrCreatePack(string packID, int subjectLevel)
+    {
+        if (string.IsNullOrWhiteSpace(packID))
+        {
+            Debug.LogError("[GraphAnalyser] GetOrCreatePack 失败：packID 不能为空喵~");
+            return null;
+        }
+
+        var existing = FindPackByPackID(packID);
+        if (existing != null)
+        {
+            if (subjectLevel < existing.ReadableFrom)
+                return null;
+
+            return existing;
+        }
+
+        if (subjectLevel < PackAccessSubjects.SystemMin)
+        {
+            Debug.LogWarning($"[GraphAnalyser] GetOrCreatePack 拒绝创建：主体等级 {subjectLevel} 没有创建 Pack '{packID}' 的权限喵~");
+            return null;
+        }
+
+        return CreatePack(packID);
+    }
+
+    /// <summary>
+    /// 确保指定 Pack 存在且带 Root 节点喵~
+    /// 若已存在则原样返回；若不存在则自动创建。
+    /// </summary>
+    public BasePackData EnsurePack(string packID, int subjectLevel)
+    {
+        return GetOrCreatePack(packID, subjectLevel);
+    }
+
+    /// <summary>
+    /// 显式创建一个新的空 Pack 喵~
+    /// 默认会调用 Initialize()，确保 Root 节点存在。
+    /// </summary>
+    public BasePackData CreatePack(string packID)
+    {
+        if (string.IsNullOrWhiteSpace(packID))
+        {
+            Debug.LogError("[GraphAnalyser] CreatePack 失败：packID 不能为空喵~");
+            return null;
+        }
+
+        var packTable = PackTable;
+        if (packTable == null)
+        {
+            Debug.LogWarning("[GraphAnalyser] 无当前 PackTable，无法创建 Pack 喵~");
+            return null;
+        }
+
+        if (packTable.TryGetValue(packID, out var existing))
+        {
+            EnsurePackRoot(existing);
+            return existing;
+        }
+
+        var pack = new BasePackData
+        {
+            PackID = packID
+        };
+        pack.Initialize();
+        packTable[packID] = pack;
+        return pack;
+    }
+
+    /// <summary>
+    /// 确保 Pack 已补好 Root 节点喵~
+    /// 对历史包或外部传入的未初始化包做兜底。
+    /// </summary>
+    public void EnsurePackRoot(BasePackData pack)
+    {
+        if (pack == null) return;
+
+        pack.Nodes ??= new Dictionary<string, BaseNodeData>();
+        if (string.IsNullOrEmpty(pack.RootNodeId) || !pack.Nodes.ContainsKey(pack.RootNodeId))
+        {
+            pack.Initialize();
+        }
+    }
+
+    /// <summary>
     /// 设置默认 Pack ID 喵~
     /// </summary>
     public void SetDefaultPackId(string packID)
