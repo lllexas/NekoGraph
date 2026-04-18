@@ -29,6 +29,7 @@ public class GraphAnalyser
     /// Legacy singleton compatibility shim.
     /// New code should use GraphHub.Instance.DefaultAnalyser.
     /// </summary>
+    [Obsolete("GraphAnalyser.Instance 已迁移。新代码请使用 GraphHub.Instance.DefaultAnalyser。", false)]
     public static GraphAnalyser Instance => GraphHub.Instance?.DefaultAnalyser;
 
     // =========================================================

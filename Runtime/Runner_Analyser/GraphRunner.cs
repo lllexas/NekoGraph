@@ -77,6 +77,7 @@ public class GraphRunner
     /// Legacy singleton compatibility shim.
     /// New code should use GraphHub.Instance.DefaultRunner.
     /// </summary>
+    [Obsolete("GraphRunner.Instance 已迁移。新代码请使用 GraphHub.Instance.DefaultRunner。", false)]
     public static GraphRunner Instance => GraphHub.Instance?.DefaultRunner;
 
     /// <summary>
