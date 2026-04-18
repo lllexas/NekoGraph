@@ -157,17 +157,17 @@ namespace NekoGraph
                 {
                     var handler = (Func<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string, HandleResult>)
                         Delegate.CreateDelegate(typeof(Func<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string, HandleResult>), method);
-                    return (content, context, pack, runner, packInstanceID, continueAction) =>
-                        handler(content, context, pack, runner, packInstanceID);
+                    return (content, context, pack, runner, packIDKey, continueAction) =>
+                        handler(content, context, pack, runner, packIDKey);
                 }
 
                 if (isLegacyFiveParamSignature)
                 {
                     var legacyVoidHandler = (Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>)
                         Delegate.CreateDelegate(typeof(Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string>), method);
-                    return (content, context, pack, runner, packInstanceID, continueAction) =>
+                    return (content, context, pack, runner, packIDKey, continueAction) =>
                     {
-                        legacyVoidHandler(content, context, pack, runner, packInstanceID);
+                        legacyVoidHandler(content, context, pack, runner, packIDKey);
                         return HandleResult.Push;
                     };
                 }
@@ -179,9 +179,9 @@ namespace NekoGraph
 
                 var legacyVoidHandlerWithContinue = (Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string, Action>)
                     Delegate.CreateDelegate(typeof(Action<VFSResolvedContent, SignalContext, BasePackData, GraphRunner, string, Action>), method);
-                return (content, context, pack, runner, packInstanceID, continueAction) =>
+                return (content, context, pack, runner, packIDKey, continueAction) =>
                 {
-                    legacyVoidHandlerWithContinue(content, context, pack, runner, packInstanceID, continueAction);
+                    legacyVoidHandlerWithContinue(content, context, pack, runner, packIDKey, continueAction);
                     return HandleResult.Push;
                 };
             }
@@ -192,26 +192,26 @@ namespace NekoGraph
                 {
                     var handler = (Func<string, SignalContext, BasePackData, GraphRunner, string, HandleResult>)
                         Delegate.CreateDelegate(typeof(Func<string, SignalContext, BasePackData, GraphRunner, string, HandleResult>), method);
-                    return (content, context, pack, runner, packInstanceID, continueAction) =>
-                        handler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID);
+                    return (content, context, pack, runner, packIDKey, continueAction) =>
+                        handler(content?.RawText ?? string.Empty, context, pack, runner, packIDKey);
                 }
 
                 if (isLegacyFiveParamSignature)
                 {
                     var legacyVoidHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string>)
                         Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string>), method);
-                    return (content, context, pack, runner, packInstanceID, continueAction) =>
+                    return (content, context, pack, runner, packIDKey, continueAction) =>
                     {
-                        legacyVoidHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID);
+                        legacyVoidHandler(content?.RawText ?? string.Empty, context, pack, runner, packIDKey);
                         return HandleResult.Push;
                     };
                 }
 
                 var legacyTextHandler = (Action<string, SignalContext, BasePackData, GraphRunner, string, Action>)
                     Delegate.CreateDelegate(typeof(Action<string, SignalContext, BasePackData, GraphRunner, string, Action>), method);
-                return (content, context, pack, runner, packInstanceID, continueAction) =>
+                return (content, context, pack, runner, packIDKey, continueAction) =>
                 {
-                    legacyTextHandler(content?.RawText ?? string.Empty, context, pack, runner, packInstanceID, continueAction);
+                    legacyTextHandler(content?.RawText ?? string.Empty, context, pack, runner, packIDKey, continueAction);
                     return HandleResult.Push;
                 };
             }

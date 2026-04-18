@@ -4,7 +4,11 @@ using UnityEngine;
 
 namespace SpaceTUI
 {
-    public abstract class TUISelectSlot : IConsoleInputHandler, IConsoleInputLineState
+    /// <summary>
+    /// 基于 console 的 TUI 选择会话。
+    /// 这是旧“slot”模型在 session 语义下的直接落位。
+    /// </summary>
+    public abstract class TUISelectSlot : ConsoleSessionBase
     {
     private TUISelectionConfig _config;
     private readonly int _startLine;
@@ -29,7 +33,7 @@ namespace SpaceTUI
     protected int ItemCount => _config.items?.Count ?? 0;
     protected bool HasItems => ItemCount > 0;
     protected int ConsoleWidth => Console?.ConsoleWidth ?? 0;
-    public virtual bool ShouldRenderInputLine => false;
+    public override bool ShouldRenderInputLine => false;
 
     public void UpdateConfig(TUISelectionConfig config, bool resetSelection = false)
     {
@@ -44,7 +48,7 @@ namespace SpaceTUI
         Render();
     }
 
-    public virtual bool HandleKey(KeyInfo key)
+    public override bool HandleKey(KeyInfo key)
     {
         // 回车键 → HandleConfirm
         if (key.keyCode == KeyCode.Return || key.keyCode == KeyCode.KeypadEnter)
@@ -92,7 +96,7 @@ namespace SpaceTUI
         return false;
     }
 
-    public virtual bool HandleSubmit(string input)
+    public override bool HandleSubmit(string input)
     {
         string trimmed = input?.Trim() ?? string.Empty;
 
@@ -116,7 +120,7 @@ namespace SpaceTUI
         return HandleConfirm();
     }
 
-    public virtual bool HandleNavigation(ConsoleNavKey key)
+    public override bool HandleNavigation(ConsoleNavKey key)
     {
         if (!HasItems)
         {
@@ -138,7 +142,7 @@ namespace SpaceTUI
         }
     }
 
-    public virtual bool HandleConfirm()
+    public override bool HandleConfirm()
     {
         if (!TryGetSelectedItem(out var item))
         {
@@ -150,7 +154,7 @@ namespace SpaceTUI
         return true;
     }
 
-    public virtual bool HandleCancel()
+    public override bool HandleCancel()
     {
         if (_config.interaction.onCancel == null)
         {
@@ -161,7 +165,7 @@ namespace SpaceTUI
         return true;
     }
 
-    public virtual string GetInputPrompt(string fallbackPrompt)
+    public override string GetInputPrompt(string fallbackPrompt)
     {
         return fallbackPrompt;
     }

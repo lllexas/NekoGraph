@@ -23,7 +23,7 @@ public class VFSNodeStrategy : NodeStrategy
         SignalContext context,
         BasePackData pack,
         GraphRunner runner,
-        string packInstanceID)
+        string packIDKey)
     {
         if (data is not VFSNodeData vfsNode) return;
 
@@ -40,7 +40,7 @@ public class VFSNodeStrategy : NodeStrategy
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
                     continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
-                    result = handler.Invoke(content, context, pack, runner, packInstanceID, continueAction);
+                    result = handler.Invoke(content, context, pack, runner, packIDKey, continueAction);
                 }
                 catch (Exception e)
                 {
@@ -82,7 +82,7 @@ public class VFSNodeStrategy : NodeStrategy
         object eventData,
         BasePackData pack,
         GraphRunner runner,
-        string packInstanceID)
+        string packIDKey)
     {
         // VFS 节点暂不响应外部事件喵~
     }

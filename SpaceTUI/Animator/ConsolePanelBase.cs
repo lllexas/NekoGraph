@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -32,9 +32,7 @@ namespace SpaceTUI
     /// </summary>
     public abstract class ConsolePanelBase<T> : ConsoleDisplayBase<T>, IPointerClickHandler where T : ConsoleManager
     {
-        // =========================================================
-        //  UI 组件引用（输入层）
-        // =========================================================
+#region Input UI
         [Header("Console Input Components")]
         [Tooltip("输入框（TMP_InputField，透明覆盖，只捕获输入）")]
         [SerializeField] protected TMP_InputField inputField;
@@ -63,10 +61,9 @@ namespace SpaceTUI
 
         [Tooltip("光标块闪烁速度（Hz）")]
         [SerializeField] protected float cursorBlockBlinkSpeed = 4f;
+#endregion
 
-        // =========================================================
-        //  输入状态
-        // =========================================================
+#region Input State
         protected int _lastCaretPosition = 0;
         protected string _lastInputText = "";
 
@@ -86,10 +83,9 @@ namespace SpaceTUI
         private bool _inputHandleHostBound = false;
         private Func<int> _inputHandleLineProvider;
         private Action<int, int, IEnumerable<string>> _inputHandleRangeWriter;
+#endregion
 
-        // =========================================================
-        //  抽象接口（由子类实现）
-        // =========================================================
+#region Abstract API
 
         /// <summary>
         /// 获取当前的 Prompt 字符串
@@ -105,10 +101,9 @@ namespace SpaceTUI
         /// 关闭动作（简单 FadeOut）
         /// </summary>
         protected override void CloseAction() => FadeOut();
+#endregion
 
-        // =========================================================
-        //  Unity 生命周期
-        // =========================================================
+#region Unity Lifecycle
 
         protected override void Awake()
         {
@@ -228,10 +223,9 @@ namespace SpaceTUI
                 imePreviewText.enabled = false;
             }
         }
+#endregion
 
-        // =========================================================
-        //  Update 轮询（输入层）
-        // =========================================================
+#region Input Loop
 
         protected new virtual void Update()
         {
@@ -254,10 +248,9 @@ namespace SpaceTUI
                 _lastCaretPosition = currentCaret;
             }
         }
+#endregion
 
-        // =========================================================
-        //  输入事件处理（IPointerClickHandler）
-        // =========================================================
+#region Pointer Input
 
         /// <summary>
         /// 点击窗口主体时激活输入框
@@ -278,10 +271,9 @@ namespace SpaceTUI
                 UpdateInputLine(inputField.text, inputField.caretPosition);
             }
         }
+#endregion
 
-        // =========================================================
-        //  光标控制方法
-        // =========================================================
+#region Input Rendering
 
         /// <summary>
         /// 处理光标闪烁（纯状态维护，由 UpdateInputLine 消费）
@@ -480,8 +472,8 @@ namespace SpaceTUI
             shouldRenderInputLine = true;
             prompt = GetPrompt() ?? string.Empty;
 
-            IConsoleInputLineState lineState = ConsoleLogic != null
-                ? ConsoleLogic.CurrentInputHandler as IConsoleInputLineState
+            IConsoleSessionPresentation lineState = ConsoleLogic != null
+                ? ConsoleLogic.CurrentSession as IConsoleSessionPresentation
                 : null;
             if (lineState == null)
             {
@@ -704,9 +696,9 @@ namespace SpaceTUI
             return count;
         }
 
-        // =========================================================
-        //  多行输入导航辅助方法
-        // =========================================================
+#endregion
+
+#region Multiline Navigation
 
         /// <summary>
         /// 计算当前行号和列号
@@ -871,9 +863,9 @@ namespace SpaceTUI
             UpdateInputLine(updatedText, newCaret);
         }
 
-        // =========================================================
-        //  输入处理
-        // =========================================================
+#endregion
+
+#region Keyboard Input
 
         /// <summary>
         /// 处理键盘输入
@@ -883,9 +875,9 @@ namespace SpaceTUI
             if (inputField == null || !inputField.isFocused) return;
 
             // 有 InputHandler 时，所有输入打包成 KeyInfo 直接交给它处理喵~
-            if (ConsoleLogic != null && ConsoleLogic.HasInputHandler)
+            if (ConsoleLogic != null && ConsoleLogic.HasSession)
             {
-                var handler = ConsoleLogic.CurrentInputHandler;
+                var session = ConsoleLogic.CurrentSession;
 
                 // 检测按下的键
                 KeyCode? pressedKey = null;
@@ -918,7 +910,7 @@ namespace SpaceTUI
                         isAltDown = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)
                     };
 
-                    if (handler.HandleKey(keyInfo))
+                    if (session.HandleKey(keyInfo))
                         return; // Handler 处理了，返回
                 }
 
@@ -962,5 +954,6 @@ namespace SpaceTUI
                 ScrollToBottom();
             }
         }
+#endregion
     }
 }

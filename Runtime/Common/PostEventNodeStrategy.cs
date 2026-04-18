@@ -24,7 +24,7 @@ public class PostEventNodeStrategy : NodeStrategy
 
     private PostEventNodeStrategy() { }
 
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not PostEventNodeData postEventNode) return;
 
@@ -103,7 +103,7 @@ public class PostEventNodeStrategy : NodeStrategy
         PropagateSignal(postEventNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         // PostEvent 节点不直接响应外部事件
     }

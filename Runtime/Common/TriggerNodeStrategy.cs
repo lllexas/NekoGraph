@@ -28,7 +28,7 @@ public class TriggerNodeStrategy : NodeStrategy
 
     private HashSet<string> _registeredNodes = new HashSet<string>();
 
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not TriggerNodeData triggerNode) return;
 
@@ -44,7 +44,7 @@ public class TriggerNodeStrategy : NodeStrategy
         RegisterTrigger(triggerNode, context, pack, runner);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey) { }
 
     private void RegisterTrigger(TriggerNodeData node, SignalContext context, BasePackData pack, GraphRunner runner)
     {

@@ -63,12 +63,12 @@ public abstract class NodeStrategy
     /// <summary>
     /// 子类实现：处理信号进入节点喵~
     /// </summary>
-    public abstract void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID);
+    public abstract void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey);
 
     /// <summary>
     /// 子类实现：处理外部事件喵~
     /// </summary>
-    public abstract void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID);
+    public abstract void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey);
 }
 
 /// <summary>

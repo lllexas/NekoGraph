@@ -19,7 +19,7 @@ public class ComparerNodeStrategy : NodeStrategy
 
     private ComparerNodeStrategy() { }
 
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not ComparerNodeData comparerNode) return;
 
@@ -49,7 +49,7 @@ public class ComparerNodeStrategy : NodeStrategy
 
             // 不通过：走红灯喵！
             Propagate(comparerNode.FailOutputs, context, pack);
-            BacktraceAndReactivateTrigger(context, pack, runner, packInstanceID);
+            BacktraceAndReactivateTrigger(context, pack, runner, packIDKey);
         }
     }
 
@@ -65,7 +65,7 @@ public class ComparerNodeStrategy : NodeStrategy
     /// <summary>
     /// 顺着信号路径往回找，重新激活上一个 Trigger 节点喵！
     /// </summary>
-    private void BacktraceAndReactivateTrigger(SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    private void BacktraceAndReactivateTrigger(SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         // 信号路径是从近到远排列的，我们倒着找喵~
         // 注意：TraveledPath 存储的是 ConnectionData 列表
@@ -92,7 +92,7 @@ public class ComparerNodeStrategy : NodeStrategy
                 }
 
                 // 重新通过 Strategy 激活该 Trigger 的监听喵~
-                TriggerNodeStrategy.Instance.OnSignalEnter(triggerNode, context, pack, runner, packInstanceID);
+                TriggerNodeStrategy.Instance.OnSignalEnter(triggerNode, context, pack, runner, packIDKey);
                 break; // 找到最近的一个就够了喵~
             }
         }
@@ -160,7 +160,7 @@ public class ComparerNodeStrategy : NodeStrategy
         }
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey) { }
 }
 
 }

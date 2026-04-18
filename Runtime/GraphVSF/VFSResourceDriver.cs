@@ -10,7 +10,7 @@ namespace NekoGraph
         SignalContext context,
         BasePackData pack,
         GraphRunner runner,
-        string packInstanceID,
+        string packIDKey,
         Action continueAction
     );
 

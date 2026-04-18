@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -28,25 +28,21 @@ namespace SpaceTUI
     /// </summary>
     public class ConsoleManager : TUIManager, IConsoleController
     {
-    // =========================================================
-    //  输出事件数据结构
-    // =========================================================
+#region Types
     public class ConsoleOutputEvent
     {
         public string message;
         public Color color;
     }
+#endregion
 
-    // =========================================================
-    //  命令注册表
-    // =========================================================
+#region Fields
     private Dictionary<string, System.Action<string[]>> _commands;
 
     public bool EnableUnityLogging = false;
+    public ConsoleClientRuntime ClientRuntime { get; private set; }
 
-    // =========================================================
-    //  权限支持喵~
-    // =========================================================
+#region State
 
     /// <summary>
     /// 当前控制台的主体等级（默认 SystemMin，开发者工具）喵~
@@ -62,10 +58,9 @@ namespace SpaceTUI
     /// 设置当前控制台的主体等级喵~
     /// </summary>
     public void SetSubjectLevel(int level) => _subjectLevel = level;
+#endregion
 
-    // =========================================================
-    //  VFS 文件系统支持
-    // =========================================================
+#region VFS
 
     /// <summary>
     /// 运行时显式切换的盘符（null = 自动选择）喵~
@@ -103,10 +98,6 @@ namespace SpaceTUI
     /// 基类返回 null（无首选，直接用第一个可用盘）；子类 override 声明偏好。
     /// </summary>
     protected virtual string GetPreferredPackID() => null;
-
-    // =========================================================
-    //  盘符映射 API 喵~
-    // =========================================================
 
     /// <summary>
     /// 盘符映射：从 GraphAnalyser 中筛选非 Hidden 的 Pack，按插入顺序分配 A、B、C...
@@ -269,10 +260,6 @@ namespace SpaceTUI
         return true;
     }
 
-    // =========================================================
-    //  VFS 就绪信号处理
-    // =========================================================
-
     [Subscribe("VFS.IO_Ready")]
     private void OnVFSSystemReady(object data)
     {
@@ -289,46 +276,70 @@ namespace SpaceTUI
 
         RefreshDriveLetter();
     }
+#endregion
 
     // =========================================================
     //  策略系统（可接管控制台输入 + TUI 交互）
     // =========================================================
-    private IConsoleInputHandler _currentInputHandler;
+    private IConsoleSession _currentSession;
     private ICatStrategy _activeStrategy;
     private Func<int> _inputHandleLineProvider;
     private Action<int, int, IEnumerable<string>> _inputHandleRangeWriter;
+#endregion
 
+#region Interactive Session
     /// <summary>是否有活跃的交互策略喵~</summary>
     public bool HasActiveStrategy => _activeStrategy != null;
-    public bool HasInputHandler => _currentInputHandler != null;
-    public IConsoleInputHandler CurrentInputHandler => _currentInputHandler;
+    public bool HasSession => _currentSession != null;
+    public IConsoleSession CurrentSession => _currentSession;
+    public string CurrentSessionId => _currentSession?.SessionId;
+    public string CurrentSessionName => _currentSession?.SessionName;
+    [Obsolete("HasInputHandler 已重命名为 HasSession。", false)]
+    public bool HasInputHandler => HasSession;
+    [Obsolete("CurrentInputHandler 已重命名为 CurrentSession。", false)]
+    public IConsoleInputHandler CurrentInputHandler => _currentSession as IConsoleInputHandler;
     public bool HasInputHandleHost => _inputHandleLineProvider != null && _inputHandleRangeWriter != null;
     public int InputHandleStartLine => _inputHandleLineProvider?.Invoke() ?? 0;
 
     /// <summary>
-    /// 挂载输入处理器。挂载后，常规控制台输入将优先转发给它。
+    /// 挂载控制台会话。挂载后，常规 console 输入将优先导流给该 session。
     /// </summary>
-    public void MountInputHandler(IConsoleInputHandler handler)
+    public void BeginSession(IConsoleSession session, bool replaceExisting = true)
     {
-        if (handler == null) return;
-        if (ReferenceEquals(_currentInputHandler, handler)) return;
+        if (session == null) return;
+        if (replaceExisting)
+            EndSession();
+        if (ReferenceEquals(_currentSession, session)) return;
 
-        _currentInputHandler = handler;
+        _currentSession = session;
+        _currentSession.OnSessionEnter(this);
     }
 
     /// <summary>
-    /// 卸载输入处理器。若传入 null，则无条件卸载当前处理器。
+    /// 卸载控制台会话。若传入 null，则无条件卸载当前 session。
     /// </summary>
-    public void UnmountInputHandler(IConsoleInputHandler handler = null)
+    public void EndSession(IConsoleSession session = null)
     {
-        if (_currentInputHandler == null) return;
-        if (handler != null && !ReferenceEquals(_currentInputHandler, handler)) return;
+        if (_currentSession == null) return;
+        if (session != null && !ReferenceEquals(_currentSession, session)) return;
 
-        // 先解除绑定，再清空处理器（状态机闭环）喵~
+        IConsoleSession closingSession = _currentSession;
         UnbindInputHandleHost();
-        
-        _currentInputHandler = null;
+        _currentSession = null;
+        closingSession.OnSessionExit(this);
     }
+
+    [Obsolete("MountInputHandler 已重命名为 BeginSession。", false)]
+    public void MountInputHandler(IConsoleInputHandler handler) => BeginSession(handler as IConsoleSession);
+
+    [Obsolete("UnmountInputHandler 已重命名为 EndSession。", false)]
+    public void UnmountInputHandler(IConsoleInputHandler handler = null) => EndSession(handler as IConsoleSession);
+
+    [Obsolete("BeginInputSession 已重命名为 BeginSession。", false)]
+    public void BeginInputSession(IConsoleInputHandler handler, bool replaceExisting = true) => BeginSession(handler as IConsoleSession, replaceExisting);
+
+    [Obsolete("EndInputSession 已重命名为 EndSession。", false)]
+    public void EndInputSession(IConsoleInputHandler handler = null) => EndSession(handler as IConsoleSession);
 
     public void BindInputHandleHost(Func<int> lineProvider, Action<int, int, IEnumerable<string>> rangeWriter)
     {
@@ -350,8 +361,16 @@ namespace SpaceTUI
         _inputHandleRangeWriter?.Invoke(index, count, lines);
     }
 
+    /// <summary>
+    /// 清理控制台交互态，但不影响命令注册和历史输出。
+    /// </summary>
+    public void ClearInteractiveState()
+    {
+        CloseActiveStrategy();
+        EndSession();
+    }
 
-/// <summary>设置并启动一个新的 cat 策略喵~</summary>
+    /// <summary>设置并启动一个新的 cat 策略喵~</summary>
     public void SetActiveStrategy(ICatStrategy strategy, string vfsPath, string graphPath = null)
     {
         CloseActiveStrategy();
@@ -367,7 +386,7 @@ namespace SpaceTUI
             ICatStrategy strategy = _activeStrategy;
             _activeStrategy = null;
             strategy.Close();
-            UnmountInputHandler();
+            EndSession();
         }
     }
 
@@ -382,10 +401,9 @@ namespace SpaceTUI
 
     /// <summary>请求将控制台视口滚动到顶部喵~（子类可重写）</summary>
     public virtual void ScrollConsoleToTop() { }  // 基类默认空实现
+#endregion
 
-    // =========================================================
-    //  公共接口 (API)
-    // =========================================================
+#region Command Registration
 
     /// <summary>
     /// 注册命令
@@ -405,10 +423,9 @@ namespace SpaceTUI
     /// 获取所有命令键
     /// </summary>
     public IEnumerable<string> GetCommandKeys() => _commands.Keys;
+#endregion
 
-    // =========================================================
-    //  受保护的触发器（子类专用通道）
-    // =========================================================
+#region Output
 
     /// <summary>
     /// 发射输出信号（受保护方法，仅供子类调用）喵~
@@ -427,9 +444,16 @@ namespace SpaceTUI
         FireOutputEvents(message, color);
     }
 
-    // =========================================================
-    //  命令执行入口
-    // =========================================================
+    /// <summary>
+    /// 将 Query 结果交给本地客户端运行时仲裁。
+    /// </summary>
+    public bool TryPresent(VFSQueryResult result)
+    {
+        return ClientRuntime != null && ClientRuntime.TryPresent(result);
+    }
+#endregion
+
+#region Command Execution
 
     /// <summary>
     /// 处理命令字符串（支持分号、管道和重定向）
@@ -439,7 +463,7 @@ namespace SpaceTUI
         if (string.IsNullOrWhiteSpace(input)) return;
 
         // 策略拦截：有活跃策略时直接转发，不走命令系统喵~
-        if (HasInputHandler && _currentInputHandler.HandleSubmit(input))
+        if (HasSession && _currentSession.HandleSubmit(input))
         {
             return;
         }
@@ -626,14 +650,6 @@ namespace SpaceTUI
         return lastOutput;
     }
 
-    // =========================================================
-    //  命令执行内部方法
-    // =========================================================
-
-    // =========================================================
-    //  索引解析支持喵~
-    // =========================================================
-
     /// <summary>
     /// 替换参数中的索引为实际路径喵~
     /// 只有独立参数且完全匹配 ^\.\d+$ 才替换（如 .0, .1）
@@ -675,10 +691,6 @@ namespace SpaceTUI
 
         return args;
     }
-
-    // =========================================================
-    //  命令执行内部方法
-    // =========================================================
 
     /// <summary>
     /// 执行单个命令
@@ -762,13 +774,13 @@ namespace SpaceTUI
             }
         }
     }
+#endregion
 
-    // =========================================================
-    //  Unity 生命周期
-    // =========================================================
+#region Unity Lifecycle
 
     protected virtual void Awake()
     {
+        ClientRuntime ??= new ConsoleClientRuntime(this);
         _commands = new Dictionary<string, System.Action<string[]>>();
         RegisterCommands();
         PostSystem.Instance.Register(this);
@@ -844,7 +856,8 @@ namespace SpaceTUI
     {
         return GraphHub.Instance?.DefaultRunner;
     }
-    }
+#endregion
+}
 }
 
 

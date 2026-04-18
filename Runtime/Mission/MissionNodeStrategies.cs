@@ -10,7 +10,7 @@ namespace NekoGraph
 
 public class MissionNodeAStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not MissionNode_A_Data missionNode) return;
 
@@ -27,7 +27,7 @@ public class MissionNodeAStrategy : NodeStrategy
         PropagateSignal(missionNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
     }
 
@@ -44,7 +44,7 @@ public class MissionNodeAStrategy : NodeStrategy
 
 public class MissionNodeSStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not MissionNode_S_Data missionNode) return;
 
@@ -73,7 +73,7 @@ public class MissionNodeSStrategy : NodeStrategy
         PropagateSignal(missionNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
     }
 
@@ -90,7 +90,7 @@ public class MissionNodeSStrategy : NodeStrategy
 
 public class MissionNodeFStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not MissionNode_F_Data missionNode) return;
 
@@ -119,7 +119,7 @@ public class MissionNodeFStrategy : NodeStrategy
         PropagateSignal(missionNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
     }
 
@@ -136,7 +136,7 @@ public class MissionNodeFStrategy : NodeStrategy
 
 public class MissionNodeRStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not MissionNode_R_Data missionNode) return;
 
@@ -174,7 +174,7 @@ public class MissionNodeRStrategy : NodeStrategy
         PropagateSignal(missionNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
     }
 

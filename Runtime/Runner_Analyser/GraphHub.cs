@@ -18,7 +18,7 @@ namespace NekoGraph
 // │  执行上下文        │  PCB (进程控制块)  │  EntityGraphContext│
 // │  执行器            │  CPU              │  GraphRunner      │
 // │  内存管理器        │  MMU (内存管理单元) │  GraphAnalyser   │
-// │  地址空间          │  虚拟地址空间      │  PackDataDict     │
+// │  地址空间          │  虚拟地址空间      │  PackTable        │
 // │  代码段            │  Text Segment      │  NodeStrategy     │
 // │  权限检查          │  内核权限校验      │  Resolve()        │
 // │  访问级别          │  rwx (读写执行)    │  PackAccessLevel  │
@@ -30,7 +30,7 @@ namespace NekoGraph
 // subjectLevel >= WritableFrom →  ReadWrite (读写，类似 chmod 644)
 //
 // 【设计原则】
-// 1. 每个执行主体 (Player/AI/System) 有独立的"地址空间"(PackDataDict)
+// 1. 每个执行主体 (Player/AI/System) 有独立的"地址空间"(PackTable)
 // 2. CPU(GraphRunner) 执行时携带 UID(_subjectLevel)
 // 3. 所有内存访问 (Analyser API) 都要经过 MMU(Resolve) 的权限检查
 // 4. 代码段 (NodeStrategy) 本身无状态，执行时携带 CPU 的 UID
@@ -85,7 +85,7 @@ public static class PackAccessSubjects
 /// └─────────────────────────────────────────────────────────────┘
 ///
 /// 【权限隔离】
-/// - 每个主体的"地址空间"(PackDataDict) 相互隔离
+/// - 每个主体的"地址空间"(PackTable) 相互隔离
 /// - AI 无法直接访问 Player 的数据（除非 Pack 的 ReadableFrom 允许）
 /// - 权限检查在"内存访问"(Analyser API) 时进行
 /// ═══════════════════════════════════════════════════════════════
@@ -123,9 +123,15 @@ public class GraphHub : SingletonMono<GraphHub>
         return context;
     }
 
+    public Dictionary<string, BasePackData> GetPackTable(GraphInstanceSlot slot)
+    {
+        return GetContext(slot).PackTable;
+    }
+
+    [Obsolete("GetPackDataDict 已更名为 GetPackTable。", false)]
     public Dictionary<string, BasePackData> GetPackDataDict(GraphInstanceSlot slot)
     {
-        return GetContext(slot).PackDataDict;
+        return GetPackTable(slot);
     }
 
     public int GetSubjectLevel(GraphInstanceSlot slot)
@@ -160,7 +166,7 @@ public class GraphHub : SingletonMono<GraphHub>
         {
             foreach (var context in _contexts.Values)
             {
-                context.SetPackDataDict(new Dictionary<string, BasePackData>());
+                context.SetPackTable(new Dictionary<string, BasePackData>());
                 context.Analyser.RebuildIndex();
             }
             return;
@@ -169,13 +175,13 @@ public class GraphHub : SingletonMono<GraphHub>
         foreach (GraphInstanceSlot slot in Enum.GetValues(typeof(GraphInstanceSlot)))
         {
             var context = GetContext(slot);
-            Dictionary<string, BasePackData> packDict = slot == GraphInstanceSlot.Player
+            Dictionary<string, BasePackData> packTable = slot == GraphInstanceSlot.Player
                 ? user.GetPlayerPackDict()
                 : user.GetEntityPackDict(slot, createIfMissing: true);
 
-            context.SetPackDataDict(packDict);
+            context.SetPackTable(packTable);
             context.Analyser.RebuildIndex();
-            context.Runner.OnPackDataDictLoaded(packDict);
+            context.Runner.OnPackTableLoaded(packTable);
         }
     }
 

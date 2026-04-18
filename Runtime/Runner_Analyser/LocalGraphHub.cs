@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NekoGraph
@@ -12,17 +13,26 @@ public class LocalGraphHub
     public EntityGraphContext Context { get; }
     public GraphAnalyser Analyser => Context.Analyser;
     public GraphRunner Runner => Context.Runner;
-    public Dictionary<string, BasePackData> PackDataDict => Context.PackDataDict;
+    public Dictionary<string, BasePackData> PackTable => Context.PackTable;
+
+    [Obsolete("PackDataDict 语义已统一为 PackTable。新代码请使用 PackTable。", false)]
+    public Dictionary<string, BasePackData> PackDataDict => Context.PackTable;
 
     public LocalGraphHub(GraphInstanceSlot slot = GraphInstanceSlot.System)
     {
         Context = new EntityGraphContext(slot);
     }
 
+    public void SetPackTable(Dictionary<string, BasePackData> packTable)
+    {
+        Context.SetPackTable(packTable);
+        Context.Analyser.RebuildIndex();
+    }
+
+    [Obsolete("SetPackDataDict 已更名为 SetPackTable。", false)]
     public void SetPackDataDict(Dictionary<string, BasePackData> packDataDict)
     {
-        Context.SetPackDataDict(packDataDict);
-        Context.Analyser.RebuildIndex();
+        SetPackTable(packDataDict);
     }
 
     public void Tick()

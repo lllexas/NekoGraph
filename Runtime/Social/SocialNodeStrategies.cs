@@ -9,7 +9,7 @@ namespace NekoGraph
 /// </summary>
 public class SocialMsgContentNodeStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not SocialMsgContentNodeData contentNode) return;
 
@@ -24,7 +24,7 @@ public class SocialMsgContentNodeStrategy : NodeStrategy
         Propagate(contentNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey) { }
 
     private void Propagate(SocialMsgContentNodeData node, SignalContext context, BasePackData pack)
     {
@@ -44,7 +44,7 @@ public class SocialMsgContentNodeStrategy : NodeStrategy
 /// </summary>
 public class ChoiceTextNodeStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not ChoiceTextNodeData choiceNode) return;
 
@@ -59,7 +59,7 @@ public class ChoiceTextNodeStrategy : NodeStrategy
         Propagate(choiceNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey) { }
 
     private void Propagate(ChoiceTextNodeData node, SignalContext context, BasePackData pack)
     {
@@ -78,7 +78,7 @@ public class ChoiceTextNodeStrategy : NodeStrategy
 /// </summary>
 public class SocialMsgEndNodeStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         // 广播结束事件
         PostSystem.Instance.Send("Social.MsgFinished", pack.PackID);
@@ -86,7 +86,7 @@ public class SocialMsgEndNodeStrategy : NodeStrategy
         // 信号流至此自然枯竭喵~
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID) { }
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey) { }
 }
 
 }

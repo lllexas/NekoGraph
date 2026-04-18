@@ -17,7 +17,7 @@ namespace NekoGraph
 /// </summary>
 public class CommandNodeStrategy : NodeStrategy
 {
-    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnSignalEnter(BaseNodeData data, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         if (data is not CommandNodeData commandNode) return;
 
@@ -26,16 +26,16 @@ public class CommandNodeStrategy : NodeStrategy
             Debug.Log($"[CommandNode] 执行命令：{commandNode.Command.CommandName}");
         }
 
-        ExecuteCommand(commandNode, context, pack, runner, packInstanceID);
+        ExecuteCommand(commandNode, context, pack, runner, packIDKey);
         PropagateSignal(commandNode, context, pack);
     }
 
-    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packInstanceID)
+    public override void OnEvent(BaseNodeData data, string eventName, object eventData, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         // 命令节点通常不直接响应外部事件
     }
 
-    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack, GraphRunner runner, string packInstanceID)
+    private void ExecuteCommand(CommandNodeData node, SignalContext context, BasePackData pack, GraphRunner runner, string packIDKey)
     {
         var command = node.Command;
 
@@ -52,7 +52,7 @@ public class CommandNodeStrategy : NodeStrategy
             int subjectLevel = runner?.GetSubjectLevel() ?? PackAccessSubjects.Player;
             var consoleContext = new GraphCommandConsoleContext(
                 pack,
-                packInstanceID,
+                packIDKey,
                 node,
                 command.CommandName,
                 subjectLevel,

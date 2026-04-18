@@ -9,7 +9,7 @@ using UnityEngine;
 public sealed class GraphCommandConsoleContext : IConsoleController
 {
     public string PackID { get; }
-    public string PackInstanceID { get; }
+    public string PackIDKey { get; }
     public string NodeID { get; }
     public string NodeName { get; }
     public string NodeType { get; }
@@ -20,14 +20,14 @@ public sealed class GraphCommandConsoleContext : IConsoleController
 
     public GraphCommandConsoleContext(
         BasePackData pack,
-        string packInstanceID,
+        string packIDKey,
         BaseNodeData node,
         string commandName,
         int subjectLevel,
         SignalContext signal)
     {
         PackID = pack?.PackID ?? "(unknown-pack)";
-        PackInstanceID = string.IsNullOrWhiteSpace(packInstanceID) ? "(unknown-instance)" : packInstanceID;
+        PackIDKey = string.IsNullOrWhiteSpace(packIDKey) ? "(unknown-pack-key)" : packIDKey;
         NodeID = node?.NodeID ?? signal?.CurrentNodeId ?? "(unknown-node)";
         NodeName = GetDisplayName(node);
         NodeType = node?.GetType().Name ?? "(unknown-type)";

@@ -38,9 +38,9 @@ public class GraphAnalyser
 
     /// <summary>
     /// </summary>
-    private Dictionary<string, BasePackData> _packs;
+    private Dictionary<string, BasePackData> _packTable;
 
-    private Dictionary<string, BasePackData> Packs => _packs;
+    private Dictionary<string, BasePackData> PackTable => _packTable;
     private readonly int _subjectLevel;
 
     /// <summary>
@@ -48,48 +48,34 @@ public class GraphAnalyser
     /// </summary>
     private string _defaultPackId = "default";
 
-    public GraphAnalyser(Dictionary<string, BasePackData> packs, int subjectLevel = PackAccessSubjects.Player)
+    public GraphAnalyser(Dictionary<string, BasePackData> packTable, int subjectLevel = PackAccessSubjects.Player)
     {
         _subjectLevel = subjectLevel;
-        SetPackDataDict(packs);
+        SetPackTable(packTable);
     }
 
+    public void SetPackTable(Dictionary<string, BasePackData> packTable)
+    {
+        _packTable = packTable ?? new Dictionary<string, BasePackData>();
+    }
+
+    [Obsolete("SetPackDataDict 已更名为 SetPackTable。", false)]
     public void SetPackDataDict(Dictionary<string, BasePackData> packs)
     {
-        _packs = packs ?? new Dictionary<string, BasePackData>();
-        _packIDToGuid.Clear();
+        SetPackTable(packs);
     }
-
-    // =========================================================
-    //  PackID → GUID 二级索引（O(1) 查询）喵~
-    //  PackDataDict key = GUID，外部 API 全用 PackID，靠索引桥接
-    // =========================================================
-
-    /// <summary>PackID → GUID key，随挂载/卸载实时维护，VFS.IO_Ready 时整体重建喵~</summary>
-    private readonly Dictionary<string, string> _packIDToGuid = new Dictionary<string, string>();
 
     public void RebuildIndex()
     {
-        _packIDToGuid.Clear();
-        var packs = Packs;
-        if (packs == null) return;
-        foreach (var kvp in packs)
-            _packIDToGuid[kvp.Value.PackID] = kvp.Key;
+        // PackTable 现在直接以 PackID 为主键，不再需要二级索引。
     }
 
     private BasePackData FindPackByPackID(string packID)
     {
-        if (!_packIDToGuid.TryGetValue(packID, out var guid)) return null;
-        var packs = Packs;
-        if (packs == null) return null;
-        packs.TryGetValue(guid, out var pack);
+        var packTable = PackTable;
+        if (packTable == null || string.IsNullOrEmpty(packID)) return null;
+        packTable.TryGetValue(packID, out var pack);
         return pack;
-    }
-
-    private string FindGuidByPackID(string packID)
-    {
-        _packIDToGuid.TryGetValue(packID, out var guid);
-        return guid;
     }
 
     // =========================================================
@@ -254,11 +240,9 @@ public class GraphAnalyser
             return null;
         }
 
-        var packs = Packs;
-        if (packs == null) { Debug.LogWarning("[GraphAnalyser] 无当前用户，无法挂载 Pack 喵~"); return null; }
-        string guid = FindGuidByPackID(packID) ?? Guid.NewGuid().ToString("N");
-        packs[guid] = pack;
-        _packIDToGuid[packID] = guid;
+        var packTable = PackTable;
+        if (packTable == null) { Debug.LogWarning("[GraphAnalyser] 无当前用户，无法挂载 Pack 喵~"); return null; }
+        packTable[packID] = pack;
         Debug.Log($"[GraphAnalyser] Pack 已加载：{packID}（节点数：{pack.Nodes.Count}）");
         return pack;
     }
@@ -274,11 +258,9 @@ public class GraphAnalyser
             return null;
         }
 
-        var packs = Packs;
-        if (packs == null) { Debug.LogWarning("[GraphAnalyser] 无当前用户，无法挂载 Pack 喵~"); return null; }
-        string guid = FindGuidByPackID(pack.PackID) ?? Guid.NewGuid().ToString("N");
-        packs[guid] = pack;
-        _packIDToGuid[pack.PackID] = guid;
+        var packTable = PackTable;
+        if (packTable == null) { Debug.LogWarning("[GraphAnalyser] 无当前用户，无法挂载 Pack 喵~"); return null; }
+        packTable[pack.PackID] = pack;
         Debug.Log($"[GraphAnalyser] Pack 已挂载：{pack.PackID}（节点数：{pack.Nodes.Count}）");
         return pack;
     }
@@ -584,11 +566,9 @@ public class GraphAnalyser
     public void RegisterPack(BasePackData pack)
     {
         if (pack == null) return;
-        var packs = Packs;
-        if (packs == null) return;
-        string guid = FindGuidByPackID(pack.PackID) ?? Guid.NewGuid().ToString("N");
-        packs[guid] = pack;
-        _packIDToGuid[pack.PackID] = guid;
+        var packTable = PackTable;
+        if (packTable == null || string.IsNullOrEmpty(pack.PackID)) return;
+        packTable[pack.PackID] = pack;
         Debug.Log($"[GraphAnalyser] Pack 注册：{pack.PackID}");
     }
 
@@ -597,12 +577,10 @@ public class GraphAnalyser
     /// </summary>
     public void UnregisterPack(string packID)
     {
-        var packs = Packs;
-        if (packs == null) return;
-        string guid = FindGuidByPackID(packID);
-        if (guid != null && packs.Remove(guid))
+        var packTable = PackTable;
+        if (packTable == null || string.IsNullOrEmpty(packID)) return;
+        if (packTable.Remove(packID))
         {
-            _packIDToGuid.Remove(packID);
             Debug.Log($"[GraphAnalyser] Pack 注销：{packID}");
         }
     }
@@ -640,9 +618,12 @@ public class GraphAnalyser
     public List<string> GetAllPackIds(int subjectLevel)
     {
         var result = new List<string>();
-        foreach (var kvp in _packIDToGuid)
+        var packTable = PackTable;
+        if (packTable == null) return result;
+
+        foreach (var kvp in packTable)
         {
-            var pack = FindPackByPackID(kvp.Key);
+            var pack = kvp.Value;
             if (pack != null && subjectLevel >= pack.ReadableFrom)
             {
                 result.Add(kvp.Key);
@@ -1021,7 +1002,7 @@ public class GraphAnalyser
 
     public string GetDebugInfo()
     {
-        var packs = Packs;
+        var packs = PackTable;
         var sb = new System.Text.StringBuilder("=== GraphAnalyser 状态 ===\n");
         sb.Append($"Pack 数量：{packs?.Count ?? 0}\n");
         if (packs == null) return sb.ToString();

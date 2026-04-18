@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace NekoGraph
@@ -19,7 +18,7 @@ namespace NekoGraph
 // │  指令集            │  机器指令          │  NodeStrategy     │
 // │  指令执行          │  取指 - 译码 - 执行  │  ProcessSignal()  │
 // │  信号/中断         │  Interrupt/Signal │  SignalContext    │
-// │  地址空间          │  页表基址寄存器    │  PackDataDict     │
+// │  地址空间          │  页表基址寄存器    │  PackTable        │
 // │  时间片调度        │  Tick/Scheduler   │  Tick()           │
 // └─────────────────────────────────────────────────────────────┘
 //
@@ -97,18 +96,23 @@ public class GraphRunner
     private readonly int _subjectLevel;
 
     /// <summary>
-    /// 持久化 GUID 到实例化 Pack 字典喵~
-    /// Key: InstanceID (运行时生成的 GUID), Value: BasePackData 本体
+    /// 共享 Pack 表喵~
+    /// Key: PackID, Value: BasePackData 本体
     /// 通常指向 UserModel.PackDataDict（GraphRunner 只是引用，不拥有所有权）
     /// 生命周期跟随 UserModel，GraphRunner 只是个"打工人"喵~
     /// </summary>
-    public Dictionary<string, BasePackData> PersistentGuidToInstancedPackDict;
+    private Dictionary<string, BasePackData> _packTable;
+
+    public Dictionary<string, BasePackData> PackTable => _packTable;
+
+    [Obsolete("PersistentGuidToInstancedPackDict 语义已统一为 PackTable。新代码请使用 PackTable。", false)]
+    public Dictionary<string, BasePackData> PersistentGuidToInstancedPackDict => _packTable;
 
     /// <summary>
-    /// InstanceID 缓存列表 - 用于安全遍历，防止"回手掏"导致字典修改异常喵~
+    /// PackID 缓存列表 - 用于安全遍历，防止"回手掏"导致字典修改异常喵~
     /// </summary>
     [NonSerialized]
-    private List<string> _instanceIdCache = new List<string>();
+    private List<string> _packIdCache = new List<string>();
 
     /// <summary>
     /// 最大信号传播深度（防止死循环）喵~
@@ -123,17 +127,17 @@ public class GraphRunner
     /// <summary>
     /// 构造函数喵~ 🔧
     /// </summary>
-    /// <param name="dict">Pack 数据字典（类似进程的地址空间）</param>
+    /// <param name="packTable">Pack 数据字典（类似进程的地址空间）</param>
     /// <param name="subjectLevel">
     /// 主体等级（类比进程 UID）喵~
     /// - Player = 0 (类似 root)
     /// - AI = 100+ (类似普通用户)
     /// - System = 1000+ (类似系统进程)
     /// </param>
-    public GraphRunner(Dictionary<string, BasePackData> dict = null, int subjectLevel = PackAccessSubjects.Player)
+    public GraphRunner(Dictionary<string, BasePackData> packTable = null, int subjectLevel = PackAccessSubjects.Player)
     {
         _subjectLevel = subjectLevel;
-        SetPackDataDict(dict);
+        SetPackTable(packTable);
     }
 
     /// <summary>
@@ -160,7 +164,7 @@ public class GraphRunner
 
     public void Dispose()
     {
-        PersistentGuidToInstancedPackDict?.Clear();
+        PackTable?.Clear();
     }
 
     // =========================================================
@@ -171,16 +175,22 @@ public class GraphRunner
     /// 设置 Pack 数据字典引用喵~
     /// 通常指向 UserModel.PackDataDict
     /// </summary>
-    public void SetPackDataDict(Dictionary<string, BasePackData> dict)
+    public void SetPackTable(Dictionary<string, BasePackData> packTable)
     {
-        PersistentGuidToInstancedPackDict = dict ?? new Dictionary<string, BasePackData>();
+        _packTable = packTable ?? new Dictionary<string, BasePackData>();
     }
 
-    public void OnPackDataDictLoaded(Dictionary<string, BasePackData> dict)
+    [Obsolete("SetPackDataDict 已更名为 SetPackTable。", false)]
+    public void SetPackDataDict(Dictionary<string, BasePackData> dict)
     {
-        SetPackDataDict(dict);
+        SetPackTable(dict);
+    }
 
-        foreach (var pack in PersistentGuidToInstancedPackDict.Values)
+    public void OnPackTableLoaded(Dictionary<string, BasePackData> packTable)
+    {
+        SetPackTable(packTable);
+
+        foreach (var pack in PackTable.Values)
         {
             if (pack != null && !pack.HasStarted && !string.IsNullOrEmpty(pack.RootNodeId))
             {
@@ -193,13 +203,19 @@ public class GraphRunner
     /// <summary>
     /// 读档/新档后由 SaveManager 直接调用，完成引用挂接 + 启动未启动的 Pack 喵~
     /// </summary>
-    public void OnUserLoaded(Dictionary<string, BasePackData> packDataDict)
+    [Obsolete("OnPackDataDictLoaded 已更名为 OnPackTableLoaded。", false)]
+    public void OnPackDataDictLoaded(Dictionary<string, BasePackData> dict)
     {
-        // 1. 直接引用 PackDataDict，零副本喵~
-        PersistentGuidToInstancedPackDict = packDataDict;
+        OnPackTableLoaded(dict);
+    }
+
+    public void OnUserLoaded(Dictionary<string, BasePackData> packTable)
+    {
+        // 1. 直接引用 PackTable，零副本喵~
+        _packTable = packTable;
 
         // 2. 扫描所有 Pack，恢复挂起信号 + 启动未启动的
-        foreach (var pack in packDataDict.Values)
+        foreach (var pack in packTable.Values)
         {
             // 2.1 恢复挂起信号 - Wait 状态下被冻结的信号现在重新入队喵~
             if (pack.SuspendedSignals != null && pack.SuspendedSignals.Count > 0)
@@ -228,10 +244,10 @@ public class GraphRunner
     }
 
     /// <summary>
-    /// 加载 Pack，返回 instanceID 作为句柄喵~
+    /// 加载 Pack，返回 PackID 作为句柄喵~
     /// </summary>
     /// <param name="pack">Pack 数据</param>
-    /// <returns>InstanceID (GUID)，用作其他系统的句柄</returns>
+    /// <returns>PackID，用作统一句柄</returns>
     public string LoadPack(BasePackData pack)
     {
         if (pack == null)
@@ -240,62 +256,50 @@ public class GraphRunner
             return null;
         }
 
-        // 1. 动态生成 instanceID (GUID)
-        string instanceID = Guid.NewGuid().ToString("N");
+        if (string.IsNullOrEmpty(pack.PackID))
+        {
+            Debug.LogError("[GraphRunner] Pack 缺少 PackID，无法加载喵~");
+            return null;
+        }
 
-        // 2. 添加到主字典
-        PersistentGuidToInstancedPackDict[instanceID] = pack;
+        // 统一以 PackID 作为共享表主键
+        PackTable[pack.PackID] = pack;
 
         if (EnableDebugLog)
         {
-            Debug.Log($"[GraphRunner] Pack 已加载：{pack.PackID} → InstanceID: {instanceID}");
+            Debug.Log($"[GraphRunner] Pack 已加载：{pack.PackID}");
         }
 
-        return instanceID;
+        return pack.PackID;
     }
 
     /// <summary>
-    /// 卸载指定 instanceID 的 Pack 喵~
+    /// 卸载指定 PackID 的 Pack 喵~
     /// </summary>
-    public void UnloadPack(string instanceID)
+    public void UnloadPack(string packID)
     {
-        if (string.IsNullOrEmpty(instanceID)) return;
+        if (string.IsNullOrEmpty(packID)) return;
 
-        // 清理该实例的信号（如果有）
-        if (PersistentGuidToInstancedPackDict.TryGetValue(instanceID, out var pack))
+        // 清理该 Pack 的信号（如果有）
+        if (PackTable.TryGetValue(packID, out var pack))
         {
             pack.ActiveSignals.Clear();
         }
 
-        PersistentGuidToInstancedPackDict.Remove(instanceID);
+        PackTable.Remove(packID);
 
         if (EnableDebugLog)
         {
-            Debug.Log($"[GraphRunner] Pack 已卸载：InstanceID: {instanceID}");
+            Debug.Log($"[GraphRunner] Pack 已卸载：{packID}");
         }
     }
 
     /// <summary>
-    /// 卸载所有指定 PackID 的实例喵~
+    /// 卸载指定 PackID 喵~
     /// </summary>
     public void UnloadPacks(string packID)
     {
-        if (string.IsNullOrEmpty(packID)) return;
-
-        var toRemove = PersistentGuidToInstancedPackDict
-            .Where(kvp => kvp.Value.PackID == packID)
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var instanceID in toRemove)
-        {
-            UnloadPack(instanceID);
-        }
-
-        if (EnableDebugLog)
-        {
-            Debug.Log($"[GraphRunner] 已卸载 {toRemove.Count} 个 PackID 为 {packID} 的实例喵~");
-        }
+        UnloadPack(packID);
     }
 
     // =========================================================
@@ -303,12 +307,12 @@ public class GraphRunner
     // =========================================================
 
     /// <summary>
-    /// 向指定 instance 注入信号喵~
+    /// 向指定 Pack 注入信号喵~
     /// </summary>
-    public void InjectSignal(string instanceID, SignalContext signal)
+    public void InjectSignal(string packID, SignalContext signal)
     {
-        if (PersistentGuidToInstancedPackDict == null) return;
-        if (!PersistentGuidToInstancedPackDict.TryGetValue(instanceID, out var pack)) return;
+        if (PackTable == null) return;
+        if (!PackTable.TryGetValue(packID, out var pack)) return;
 
         pack.ActiveSignals.Enqueue(signal);
     }
@@ -316,10 +320,10 @@ public class GraphRunner
     /// <summary>
     /// 从 Root 节点注入信号喵~（便捷方法）
     /// </summary>
-    public void InjectSignalFromRoot(string instanceID, object args = null)
+    public void InjectSignalFromRoot(string packID, object args = null)
     {
-        if (PersistentGuidToInstancedPackDict == null) return;
-        if (!PersistentGuidToInstancedPackDict.TryGetValue(instanceID, out var pack)) return;
+        if (PackTable == null) return;
+        if (!PackTable.TryGetValue(packID, out var pack)) return;
         if (string.IsNullOrEmpty(pack.RootNodeId))
         {
             Debug.LogWarning($"[GraphRunner] Pack 没有 RootNodeId，无法注入信号喵~");
@@ -335,9 +339,9 @@ public class GraphRunner
     /// </summary>
     public void BroadcastSignal(SignalContext signal)
     {
-        if (PersistentGuidToInstancedPackDict == null) return;
+        if (PackTable == null) return;
 
-        foreach (var pack in PersistentGuidToInstancedPackDict.Values)
+        foreach (var pack in PackTable.Values)
         {
             pack.ActiveSignals.Enqueue(signal.Clone());
         }
@@ -349,22 +353,22 @@ public class GraphRunner
     /// </summary>
     private void TickAllPacks()
     {
-        if (PersistentGuidToInstancedPackDict == null) return;
+        if (PackTable == null) return;
 
         // 使用缓存列表安全遍历，防止信号处理过程中卸载 Pack 导致字典修改喵~
-        _instanceIdCache.Clear();
-        foreach (var key in PersistentGuidToInstancedPackDict.Keys)
+        _packIdCache.Clear();
+        foreach (var key in PackTable.Keys)
         {
-            _instanceIdCache.Add(key);
+            _packIdCache.Add(key);
         }
 
-        foreach (var instanceID in _instanceIdCache)
+        foreach (var packID in _packIdCache)
         {
-            if (PersistentGuidToInstancedPackDict.TryGetValue(instanceID, out var pack))
+            if (PackTable.TryGetValue(packID, out var pack))
             {
                 if (pack.ActiveSignals.Count > 0)
                 {
-                    TickPack(pack, instanceID);
+                    TickPack(pack, packID);
                 }
             }
         }
@@ -374,7 +378,7 @@ public class GraphRunner
     /// 驱动单个 Pack 的信号步进喵~
     /// 限制每帧处理的信号数量，防止卡顿
     /// </summary>
-    private void TickPack(BasePackData pack, string instanceID)
+    private void TickPack(BasePackData pack, string packID)
     {
         int signalsToProcess = Math.Min(pack.ActiveSignals.Count, 50);
 
@@ -384,7 +388,7 @@ public class GraphRunner
 
             var signal = pack.ActiveSignals.Dequeue();
 
-            ProcessSignal(signal, pack, instanceID);
+            ProcessSignal(signal, pack, packID);
         }
     }
 
@@ -392,7 +396,7 @@ public class GraphRunner
     /// 处理单个信号的传播喵~
     /// 包含深度检查，防止死循环喵~
     /// </summary>
-    private void ProcessSignal(SignalContext signal, BasePackData pack, string instanceID)
+    private void ProcessSignal(SignalContext signal, BasePackData pack, string packID)
     {
         // 深度检查：防止死循环喵~
         if (signal.Depth > MaxSignalDepth)
@@ -420,7 +424,7 @@ public class GraphRunner
             var strategy = GetStrategy(currentNode);
             if (strategy != null)
             {
-                strategy.OnSignalEnter(currentNode, signal, pack, this, instanceID);
+                strategy.OnSignalEnter(currentNode, signal, pack, this, packID);
             }
         }
         else
@@ -449,10 +453,10 @@ public class GraphRunner
     /// <summary>
     /// 清理指定 instance 的所有活跃监听器（TriggerNode 的响应式监听）喵~
     /// </summary>
-    private void CleanupInstanceListeners(string instanceID)
+    private void CleanupInstanceListeners(string packID)
     {
         // 通过 TriggerNodeStrategy 单例调用清理方法
-        TriggerNodeStrategy.Instance?.ForceDeactivate(instanceID);
+        TriggerNodeStrategy.Instance?.ForceDeactivate(packID);
     }
 
     /// <summary>
@@ -462,11 +466,11 @@ public class GraphRunner
     public string GetDebugInfo()
     {
         var info = new System.Text.StringBuilder();
-        info.AppendLine($"[GraphRunner] Pack 数据：{PersistentGuidToInstancedPackDict?.Count ?? 0}");
+        info.AppendLine($"[GraphRunner] Pack 数据：{PackTable?.Count ?? 0}");
 
-        if (PersistentGuidToInstancedPackDict != null)
+        if (PackTable != null)
         {
-            foreach (var kvp in PersistentGuidToInstancedPackDict)
+            foreach (var kvp in PackTable)
             {
                 var pack = kvp.Value;
                 int signalCount = pack.ActiveSignals.Count;
@@ -474,7 +478,7 @@ public class GraphRunner
                 // 信号积压警告喵~
                 if (signalCount > 20)
                 {
-                    info.AppendLine($"  ⚠️ [警告] 信号积压！InstanceID: {kvp.Key}, Count: {signalCount}");
+                    info.AppendLine($"  ⚠️ [警告] 信号积压！PackID: {kvp.Key}, Count: {signalCount}");
                 }
                 else
                 {

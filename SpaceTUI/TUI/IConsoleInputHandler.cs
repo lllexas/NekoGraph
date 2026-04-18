@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace SpaceTUI
 {
@@ -7,75 +7,104 @@ namespace SpaceTUI
     /// </summary>
     public enum ConsoleNavKey
     {
-    Up,
-    Down,
-    Left,
-    Right,
-    Home,
-    End
-}
-
-/// <summary>
-/// 按键信息结构体 - 打包原始按键状态喵~
-/// </summary>
-public struct KeyInfo
-{
-    public KeyCode keyCode;
-    public bool isShiftDown;
-    public bool isCtrlDown;
-    public bool isAltDown;
-}
-
-/// <summary>
-/// 控制台输入处理器接口。
-/// 挂载后，ConsoleManager 会优先将输入事件导流给处理器。
-/// 返回 true 表示该输入已被消费，控制台默认行为不再继续。
-/// </summary>
-public interface IConsoleInputHandler
-{
-    /// <summary>
-    /// 处理原始按键输入喵~
-    /// </summary>
-    bool HandleKey(KeyInfo key);
+        Up,
+        Down,
+        Left,
+        Right,
+        Home,
+        End
+    }
 
     /// <summary>
-    /// 处理一条来自控制台的提交输入。
+    /// 按键信息结构体 - 打包原始按键状态喵~
     /// </summary>
-    bool HandleSubmit(string input);
+    public struct KeyInfo
+    {
+        public KeyCode keyCode;
+        public bool isShiftDown;
+        public bool isCtrlDown;
+        public bool isAltDown;
+    }
 
     /// <summary>
-    /// 处理导航键。
+    /// 控制台会话的输入侧协议。
+    /// 一个 session 可以接管 console 的按键、提交、导航、确认和取消。
     /// </summary>
-    bool HandleNavigation(ConsoleNavKey key);
+    public interface IConsoleSessionInput
+    {
+        bool HandleKey(KeyInfo key);
+        bool HandleSubmit(string input);
+        bool HandleNavigation(ConsoleNavKey key);
+        bool HandleConfirm();
+        bool HandleCancel();
+    }
 
     /// <summary>
-    /// 处理确认键（Enter）。
+    /// 控制台会话的显示侧协议。
+    /// session 可声明是否接管底部输入行，以及使用什么提示文本。
     /// </summary>
-    bool HandleConfirm();
+    public interface IConsoleSessionPresentation
+    {
+        bool ShouldRenderInputLine { get; }
+        string GetInputPrompt(string fallbackPrompt);
+    }
 
     /// <summary>
-    /// 处理取消键（Esc）。
+    /// 控制台会话协议。
+    /// 这是 console 交互态的正式抽象，取代“input handler / slot”这种早期命名。
     /// </summary>
-    bool HandleCancel();
-}
-
-/// <summary>
-/// 可选的输入行显示策略。
-/// 由挂载到控制台的输入处理器决定是否继续显示默认输入提示，
-/// 以及是否替换为当前交互态专属的提示文本。
-/// </summary>
-public interface IConsoleInputLineState
-{
-    /// <summary>
-    /// 是否继续显示底部默认输入行。
-    /// 返回 false 时，控制台会把底部空间完全交给输入处理器自己的渲染内容。
-    /// </summary>
-    bool ShouldRenderInputLine { get; }
+    public interface IConsoleSession : IConsoleSessionInput, IConsoleSessionPresentation
+    {
+        string SessionId { get; }
+        string SessionName { get; }
+        void OnSessionEnter(ConsoleManager console);
+        void OnSessionExit(ConsoleManager console);
+    }
 
     /// <summary>
-    /// 返回当前交互态要使用的提示文本。
-    /// 返回 null 或空字符串时，沿用控制台自己的默认提示。
+    /// 控制台会话基类。
+    /// 默认保持输入行可见，并沿用宿主 console 的默认 prompt。
     /// </summary>
-    string GetInputPrompt(string fallbackPrompt);
+    public abstract class ConsoleSessionBase : IConsoleSession, IConsoleInputHandler, IConsoleInputLineState
+    {
+        public virtual string SessionId => GetType().Name;
+
+        public virtual string SessionName => GetType().Name;
+
+        public virtual bool ShouldRenderInputLine => true;
+
+        public virtual string GetInputPrompt(string fallbackPrompt) => fallbackPrompt;
+
+        public virtual void OnSessionEnter(ConsoleManager console)
+        {
+        }
+
+        public virtual void OnSessionExit(ConsoleManager console)
+        {
+        }
+
+        public abstract bool HandleKey(KeyInfo key);
+        public abstract bool HandleSubmit(string input);
+        public abstract bool HandleNavigation(ConsoleNavKey key);
+        public abstract bool HandleConfirm();
+        public abstract bool HandleCancel();
+    }
+
+    /// <summary>
+    /// 旧名兼容层：控制台输入处理器。
+    /// 新代码请直接使用 IConsoleSession / IConsoleSessionInput。
+    /// </summary>
+    [System.Obsolete("IConsoleInputHandler 已重命名为 IConsoleSessionInput / IConsoleSession。新代码请改用 session 语义。", false)]
+    public interface IConsoleInputHandler : IConsoleSessionInput
+    {
+    }
+
+    /// <summary>
+    /// 旧名兼容层：输入行显示策略。
+    /// 新代码请直接使用 IConsoleSessionPresentation / IConsoleSession。
+    /// </summary>
+    [System.Obsolete("IConsoleInputLineState 已重命名为 IConsoleSessionPresentation / IConsoleSession。新代码请改用 session 语义。", false)]
+    public interface IConsoleInputLineState : IConsoleSessionPresentation
+    {
     }
 }

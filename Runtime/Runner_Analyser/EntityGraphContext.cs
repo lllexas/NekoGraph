@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace NekoGraph
@@ -12,14 +13,14 @@ namespace NekoGraph
 // │  字段              │  操作系统类比      │  说明             │
 // ├─────────────────────────────────────────────────────────────┤
 // │  Slot              │  PID + UID        │  进程标识 + 用户 ID│
-// │  PackDataDict      │  页表/地址空间     │  进程的虚拟内存   │
+// │  PackTable         │  页表/地址空间     │  进程的虚拟内存   │
 // │  Analyser          │  MMU (内存管理单元) │  地址转换 + 权限 │
 // │  Runner            │  CPU 上下文        │  执行环境         │
 // └─────────────────────────────────────────────────────────────┘
 //
 // 【设计说明】
 // 1. 每个执行主体 (Player/AI/System) 有一个独立的 PCB
-// 2. PCB 包含独立的"地址空间"(PackDataDict) 和"执行环境"(Runner)
+// 2. PCB 包含独立的"地址空间"(PackTable) 和"执行环境"(Runner)
 // 3. 权限检查由"MMU"(Analyser) 负责，使用"UID"(_subjectLevel)
 // 4. CPU 和 MMU 的 UID 保持一致，确保权限一致性
 //
@@ -47,23 +48,32 @@ namespace NekoGraph
 public class EntityGraphContext
 {
     public GraphInstanceSlot Slot { get; }
-    public Dictionary<string, BasePackData> PackDataDict { get; private set; }
+    public Dictionary<string, BasePackData> PackTable { get; private set; }
     public GraphAnalyser Analyser { get; }
     public GraphRunner Runner { get; }
+
+    [Obsolete("PackDataDict 语义已统一为 PackTable。新代码请使用 PackTable。", false)]
+    public Dictionary<string, BasePackData> PackDataDict => PackTable;
 
     public EntityGraphContext(GraphInstanceSlot slot)
     {
         Slot = slot;
-        PackDataDict = new Dictionary<string, BasePackData>();
-        Analyser = new GraphAnalyser(PackDataDict, (int)slot);
-        Runner = new GraphRunner(PackDataDict, (int)slot);
+        PackTable = new Dictionary<string, BasePackData>();
+        Analyser = new GraphAnalyser(PackTable, (int)slot);
+        Runner = new GraphRunner(PackTable, (int)slot);
     }
 
+    public void SetPackTable(Dictionary<string, BasePackData> packTable)
+    {
+        PackTable = packTable ?? new Dictionary<string, BasePackData>();
+        Analyser.SetPackTable(PackTable);
+        Runner.SetPackTable(PackTable);
+    }
+
+    [Obsolete("SetPackDataDict 已更名为 SetPackTable。", false)]
     public void SetPackDataDict(Dictionary<string, BasePackData> packDataDict)
     {
-        PackDataDict = packDataDict ?? new Dictionary<string, BasePackData>();
-        Analyser.SetPackDataDict(PackDataDict);
-        Runner.SetPackDataDict(PackDataDict);
+        SetPackTable(packDataDict);
     }
 }
 
