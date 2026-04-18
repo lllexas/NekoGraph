@@ -25,6 +25,12 @@ using NekoGraph;
 /// </summary>
 public class GraphAnalyser
 {
+    /// <summary>
+    /// Legacy singleton compatibility shim.
+    /// New code should use GraphHub.Instance.DefaultAnalyser.
+    /// </summary>
+    public static GraphAnalyser Instance => GraphHub.Instance?.DefaultAnalyser;
+
     // =========================================================
     //  Pack 注册表喵~
     // =========================================================

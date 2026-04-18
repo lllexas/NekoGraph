@@ -65,6 +65,9 @@ public class VFSNodeData : BaseNodeData
     [TextArea(4, 8)]
     public string InlineText;
 
+    [Obsolete("兼容访问器，指向InlineText")]
+    public string DataJson { get { return InlineText; } set { InlineText = value; } }
+
     /// <summary>
     /// 外部引用路径喵~
     /// 文本引用通常是 Resources 路径；UnityObject 引用同样优先按 Resources 路径解析。

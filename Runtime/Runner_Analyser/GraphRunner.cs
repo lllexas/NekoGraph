@@ -74,6 +74,12 @@ namespace NekoGraph
 public class GraphRunner
 {
     /// <summary>
+    /// Legacy singleton compatibility shim.
+    /// New code should use GraphHub.Instance.DefaultRunner.
+    /// </summary>
+    public static GraphRunner Instance => GraphHub.Instance?.DefaultRunner;
+
+    /// <summary>
     /// 主体等级（类比操作系统的进程 UID）喵~ 🔑
     /// 每个 GraphRunner 实例对应一个执行主体（Player/AI/System）
     /// 
