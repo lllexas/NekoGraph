@@ -16,6 +16,8 @@ public class SingletonMono<T> : MonoBehaviour where T : MonoBehaviour
 
     public bool DontDestroyOnLoadEnabled = true;
 
+    public static bool IsApplicationQuitting => _applicationIsQuitting;
+
     public static T Instance
     {
         get

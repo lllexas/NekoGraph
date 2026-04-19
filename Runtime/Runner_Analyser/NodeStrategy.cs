@@ -104,6 +104,7 @@ public static class NodeStrategyFactory
         Register<MissionNode_F_Data>(new MissionNodeFStrategy());
         Register<MissionNode_R_Data>(new MissionNodeRStrategy());
         Register<CommandNodeData>(new CommandNodeStrategy());
+        Register<ComparerNodeData>(ComparerNodeStrategy.Instance);
         Register<TriggerNodeData>(TriggerNodeStrategy.Instance);
         Register<PostEventNodeData>(PostEventNodeStrategy.Instance);
         Register<SocialMsgContentNodeData>(new SocialMsgContentNodeStrategy());

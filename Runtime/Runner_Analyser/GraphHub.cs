@@ -94,6 +94,8 @@ public class GraphHub : SingletonMono<GraphHub>
 {
     private readonly Dictionary<GraphInstanceSlot, EntityGraphContext> _contexts =
         new Dictionary<GraphInstanceSlot, EntityGraphContext>();
+    private readonly Dictionary<Type, PackFacadeBase> _facades =
+        new Dictionary<Type, PackFacadeBase>();
 
     public GraphAnalyser DefaultAnalyser => GetContext(GraphInstanceSlot.Player)?.Analyser;
     public GraphRunner DefaultRunner => GetContext(GraphInstanceSlot.Player)?.Runner;
@@ -121,6 +123,52 @@ public class GraphHub : SingletonMono<GraphHub>
         }
 
         return context;
+    }
+
+    public void ClearFacadeBindings()
+    {
+        Debug.LogFormat(
+            LogType.Log,
+            LogOption.NoStacktrace,
+            null,
+            "[graph_hub] clear-facades count={0}",
+            _facades.Count);
+
+        foreach (var facade in _facades.Values)
+        {
+            facade?.ClearPackBinding();
+        }
+
+        _facades.Clear();
+    }
+
+    public void RegisterFacade(PackFacadeBase facade)
+    {
+        if (facade == null)
+            return;
+
+        _facades[facade.GetType()] = facade;
+        Debug.LogFormat(
+            LogType.Log,
+            LogOption.NoStacktrace,
+            null,
+            "[graph_hub] register-facade type={0} pack={1}",
+            facade.GetType().Name,
+            facade.ResolvedPackID);
+    }
+
+    public T GetFacade<T>() where T : PackFacadeBase
+    {
+        T result = _facades.TryGetValue(typeof(T), out var facade) ? facade as T : null;
+        Debug.LogFormat(
+            LogType.Log,
+            LogOption.NoStacktrace,
+            null,
+            "[graph_hub] get-facade type={0} found={1} pack={2}",
+            typeof(T).Name,
+            result != null,
+            result?.ResolvedPackID ?? "(null)");
+        return result;
     }
 
     public Dictionary<string, BasePackData> GetPackTable(GraphInstanceSlot slot)

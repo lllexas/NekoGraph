@@ -334,6 +334,55 @@ public class GraphRunner
         pack.ActiveSignals.Enqueue(signal);
     }
 
+    public bool ResumeSuspendedSignalToTarget(string packID, string signalId, string sourceNodeId, string targetNodeId)
+    {
+        if (PackTable == null || string.IsNullOrWhiteSpace(packID))
+            return false;
+
+        if (!PackTable.TryGetValue(packID, out var pack) || pack == null)
+        {
+            Debug.LogWarning($"[GraphRunner] ResumeSuspendedSignalToTarget 失败：Pack '{packID}' 不存在");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(signalId) || !pack.SuspendedSignals.TryGetValue(signalId, out var signal) || signal == null)
+        {
+            Debug.LogWarning($"[GraphRunner] ResumeSuspendedSignalToTarget 失败：Signal '{signalId}' 不存在于挂起字典");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(sourceNodeId) || signal.CurrentNodeId != sourceNodeId)
+        {
+            Debug.LogWarning($"[GraphRunner] ResumeSuspendedSignalToTarget 失败：Signal '{signalId}' 当前节点是 '{signal.CurrentNodeId}'，不是预期的 '{sourceNodeId}'");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetNodeId) || !pack.Nodes.ContainsKey(targetNodeId))
+        {
+            Debug.LogWarning($"[GraphRunner] ResumeSuspendedSignalToTarget 失败：目标节点 '{targetNodeId}' 不存在");
+            return false;
+        }
+
+        if (pack.Nodes.TryGetValue(sourceNodeId, out var sourceNode))
+            sourceNode.IsChecked = true;
+
+        signal.RecordConnection(new ConnectionData(sourceNodeId, -1, targetNodeId, -1));
+        signal.CurrentNodeId = targetNodeId;
+        pack.SuspendedSignals.Remove(signalId);
+        pack.ActiveSignals.Enqueue(signal);
+
+        Debug.LogFormat(
+            LogType.Log,
+            LogOption.NoStacktrace,
+            null,
+            "[graph_runner] resume-suspended-signal pack={0} signal={1} sourceNode={2} targetNode={3}",
+            packID,
+            signalId,
+            sourceNodeId,
+            targetNodeId);
+        return true;
+    }
+
     /// <summary>
     /// 向所有 Pack 广播信号喵~
     /// </summary>

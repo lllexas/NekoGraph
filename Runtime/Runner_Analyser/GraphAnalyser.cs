@@ -148,11 +148,23 @@ public class GraphAnalyser
     private static List<BaseNodeData> BfsGetChildren(BasePackData pack, string path)
     {
         var parent = BfsGetNode(pack, path);
-        if (parent is not VFSNodeData parentVfs || parentVfs.ChildNodeIDs == null)
+        IEnumerable<string> childIds = null;
+        if (parent is VFSNodeData parentVfs && parentVfs.ChildNodeIDs != null)
+        {
+            childIds = parentVfs.ChildNodeIDs;
+        }
+        else if (parent?.GetType().Name == "RootNodeData")
+        {
+            var underscoreField = parent.GetType().GetField("_");
+            if (underscoreField != null)
+                childIds = underscoreField.GetValue(parent) as List<string>;
+        }
+
+        if (childIds == null)
             return new List<BaseNodeData>();
 
         var result = new List<BaseNodeData>();
-        foreach (var childId in parentVfs.ChildNodeIDs)
+        foreach (var childId in childIds)
         {
             if (!pack.Nodes.TryGetValue(childId, out var child)) continue;
             if (child is VFSNodeData vfs && !vfs.IsEnabled) continue;
