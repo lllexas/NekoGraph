@@ -311,6 +311,7 @@ namespace SpaceTUI
             EndSession();
         if (ReferenceEquals(_currentSession, session)) return;
 
+        Debug.Log($"<color=cyan>[ConsoleManager]</color> BeginSession: {session.SessionId} ({session.SessionName})");
         _currentSession = session;
         _currentSession.OnSessionEnter(this);
     }
@@ -324,6 +325,7 @@ namespace SpaceTUI
         if (session != null && !ReferenceEquals(_currentSession, session)) return;
 
         IConsoleSession closingSession = _currentSession;
+        Debug.Log($"<color=orange>[ConsoleManager]</color> EndSession: {closingSession.SessionId} ({closingSession.SessionName})");
         UnbindInputHandleHost();
         _currentSession = null;
         closingSession.OnSessionExit(this);
@@ -345,6 +347,7 @@ namespace SpaceTUI
     {
         _inputHandleLineProvider = lineProvider;
         _inputHandleRangeWriter = rangeWriter;
+        Debug.Log("[ConsoleManager] InputHandleHost bound");
     }
 
     public void UnbindInputHandleHost(Func<int> lineProvider = null, Action<int, int, IEnumerable<string>> rangeWriter = null)
@@ -352,13 +355,19 @@ namespace SpaceTUI
         if (lineProvider != null && !ReferenceEquals(_inputHandleLineProvider, lineProvider)) return;
         if (rangeWriter != null && !ReferenceEquals(_inputHandleRangeWriter, rangeWriter)) return;
 
+        Debug.Log("[ConsoleManager] InputHandleHost unbound");
         _inputHandleLineProvider = null;
         _inputHandleRangeWriter = null;
     }
 
     public void WriteInputHandleRange(int index, int count, IEnumerable<string> lines)
     {
-        _inputHandleRangeWriter?.Invoke(index, count, lines);
+        if (_inputHandleRangeWriter == null)
+        {
+            Debug.LogWarning($"[ConsoleManager] WriteInputHandleRange skipped: _inputHandleRangeWriter is null! index={index}, count={count}");
+            return;
+        }
+        _inputHandleRangeWriter.Invoke(index, count, lines);
     }
 
     /// <summary>

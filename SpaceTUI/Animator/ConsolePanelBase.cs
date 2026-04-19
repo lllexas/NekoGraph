@@ -492,11 +492,17 @@ namespace SpaceTUI
         {
             if (_inputHandleHostBound || ConsoleLogic == null)
             {
+                if (_inputHandleHostBound && ConsoleLogic != null)
+                {
+                    // 诊断：已绑定状态下，ConsoleManager 的 writer 是否仍为 null？
+                    Debug.Log($"[TryBindInputHandleHost] Already bound. Checking ConsoleManager state...");
+                }
                 return;
             }
 
             ConsoleLogic.BindInputHandleHost(_inputHandleLineProvider, _inputHandleRangeWriter);
             _inputHandleHostBound = true;
+            Debug.Log("[TryBindInputHandleHost] Host bound successfully");
         }
 
         private void TryUnbindInputHandleHost()
@@ -872,12 +878,26 @@ namespace SpaceTUI
         /// </summary>
         protected virtual void HandleKeyboardInput()
         {
-            if (inputField == null || !inputField.isFocused) return;
+            if (_canvasGroup == null || !_canvasGroup.blocksRaycasts)
+                return;
 
-            // 有 InputHandler 时，所有输入打包成 KeyInfo 直接交给它处理喵~
+/*            // ===== 诊断日志 =====
+            if (ConsoleLogic != null && ConsoleLogic.HasSession)
+            {
+                var sess = ConsoleLogic.CurrentSession;
+                Debug.Log($"<color=yellow>[PanelInput]</color> HasSession=true, Session={sess?.SessionId}, ShouldRenderInputLine={sess?.ShouldRenderInputLine}");
+            }
+            else if (ConsoleLogic != null)
+            {
+                Debug.Log($"<color=gray>[PanelInput]</color> HasSession=false, inputField.isFocused={inputField?.isFocused}");
+            }
+            // ===================*/
+
             if (ConsoleLogic != null && ConsoleLogic.HasSession)
             {
                 var session = ConsoleLogic.CurrentSession;
+                if (session == null)
+                    return;
 
                 // 检测按下的键
                 KeyCode? pressedKey = null;
@@ -898,6 +918,24 @@ namespace SpaceTUI
                     pressedKey = KeyCode.LeftArrow;
                 else if (Input.GetKeyDown(KeyCode.RightArrow))
                     pressedKey = KeyCode.RightArrow;
+                else if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+                    pressedKey = KeyCode.Alpha1;
+                else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+                    pressedKey = KeyCode.Alpha2;
+                else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+                    pressedKey = KeyCode.Alpha3;
+                else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+                    pressedKey = KeyCode.Alpha4;
+                else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
+                    pressedKey = KeyCode.Alpha5;
+                else if (Input.GetKeyDown(KeyCode.Alpha6) || Input.GetKeyDown(KeyCode.Keypad6))
+                    pressedKey = KeyCode.Alpha6;
+                else if (Input.GetKeyDown(KeyCode.Alpha7) || Input.GetKeyDown(KeyCode.Keypad7))
+                    pressedKey = KeyCode.Alpha7;
+                else if (Input.GetKeyDown(KeyCode.Alpha8) || Input.GetKeyDown(KeyCode.Keypad8))
+                    pressedKey = KeyCode.Alpha8;
+                else if (Input.GetKeyDown(KeyCode.Alpha9) || Input.GetKeyDown(KeyCode.Keypad9))
+                    pressedKey = KeyCode.Alpha9;
 
                 // 有键按下就打包丢给 Handler
                 if (pressedKey.HasValue)
@@ -910,13 +948,29 @@ namespace SpaceTUI
                         isAltDown = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)
                     };
 
-                    if (session.HandleKey(keyInfo))
+                    Debug.Log($"[PanelInput] → session.HandleKey: {keyInfo.keyCode}");
+                    bool handled = session.HandleKey(keyInfo);
+                    Debug.Log($"[PanelInput] ← session.HandleKey returned {handled}");
+                    if (handled)
+                    {
+                        // session 消费了回车（如确认/退出），防止 TMP_InputField 在 EventSystem 阶段残留换行符
+                        if (keyInfo.keyCode == KeyCode.Return || keyInfo.keyCode == KeyCode.KeypadEnter)
+                        {
+                            if (inputField != null)
+                            {
+                                inputField.text = "";
+                                _lastInputText = "";
+                            }
+                        }
                         return; // Handler 处理了，返回
+                    }
                 }
 
-                // 其他输入（文本输入）通过输入框内容提交
+                // session 模式下不再依赖输入框焦点或普通文本输入。
                 return;
             }
+
+            if (inputField == null || !inputField.isFocused) return;
 
             // 没有 InputHandler，走默认处理逻辑
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
@@ -930,6 +984,7 @@ namespace SpaceTUI
 
                 if (string.IsNullOrWhiteSpace(inputField.text))
                 {
+                    inputField.text = "";
                     _lastInputText = "";
                     UpdateInputLine("", 0);
                     return;

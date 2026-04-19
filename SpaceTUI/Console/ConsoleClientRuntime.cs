@@ -1,8 +1,7 @@
 using UnityEngine;
 using NekoGraph;
 using System;
-using System.Linq;
-using System.Reflection;
+using System.Collections.Generic;
 
 namespace SpaceTUI
 {
@@ -13,6 +12,9 @@ namespace SpaceTUI
     /// </summary>
     public sealed class ConsoleClientRuntime
     {
+        private static readonly Dictionary<string, Func<object, IConsoleSession>> SessionFactories =
+            new(StringComparer.Ordinal);
+
         private readonly ConsoleManager _console;
 
         public ConsoleClientRuntime(ConsoleManager console)
@@ -29,22 +31,25 @@ namespace SpaceTUI
         /// </summary>
         public bool TryPresent(VFSQueryResult result)
         {
+            Debug.Log($"[ConsoleClientRuntime] TryPresent called: type={result?.PresentationType}, title={result?.Title}");
+
             if (_console == null || result == null)
                 return false;
 
-            switch (result.PresentationType)
+            if (!string.IsNullOrWhiteSpace(result.PresentationType) &&
+                SessionFactories.TryGetValue(result.PresentationType, out var factory))
             {
-                case "social.msg":
-                    return TryOpenReflectedSession(
-                        result.Payload,
-                        "VFSMsgQueryPayload",
-                        "VFSMsgSession",
-                        "Message");
-
-                default:
-                    Debug.Log($"[ConsoleClientRuntime] 未处理的 QueryResult: type={result.PresentationType ?? "(null)"} title={result.Title ?? "(null)"}");
-                    return false;
+                var session = factory?.Invoke(result.Payload);
+                Debug.Log($"[ConsoleClientRuntime] Factory returned session: {session?.SessionId ?? "(null)"}");
+                if (session != null)
+                {
+                    OpenSession(session);
+                    return true;
+                }
             }
+
+            Debug.Log($"[ConsoleClientRuntime] 未处理的 QueryResult: type={result.PresentationType ?? "(null)"} title={result.Title ?? "(null)"}");
+            return false;
         }
 
         /// <summary>
@@ -71,45 +76,12 @@ namespace SpaceTUI
             _console?.ClearInteractiveState();
         }
 
-        private bool TryOpenReflectedSession(
-            object payload,
-            string expectedPayloadTypeName,
-            string sessionTypeName,
-            string requiredPayloadProperty = null)
+        public static void RegisterSessionFactory(string presentationType, Func<object, IConsoleSession> factory)
         {
-            if (payload == null)
-                return false;
+            if (string.IsNullOrWhiteSpace(presentationType) || factory == null)
+                return;
 
-            Type payloadType = payload.GetType();
-            if (!string.Equals(payloadType.Name, expectedPayloadTypeName, StringComparison.Ordinal))
-                return false;
-
-            if (!string.IsNullOrEmpty(requiredPayloadProperty))
-            {
-                PropertyInfo property = payloadType.GetProperty(requiredPayloadProperty, BindingFlags.Public | BindingFlags.Instance);
-                if (property == null || property.GetValue(payload) == null)
-                    return false;
-            }
-
-            Type sessionType = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .Select(assembly => assembly.GetType(sessionTypeName, throwOnError: false))
-                .FirstOrDefault(type => type != null);
-
-            if (sessionType == null)
-            {
-                Debug.LogWarning($"[ConsoleClientRuntime] 未找到 Session 类型：{sessionTypeName}");
-                return false;
-            }
-
-            if (Activator.CreateInstance(sessionType, payload) is not IConsoleSession session)
-            {
-                Debug.LogWarning($"[ConsoleClientRuntime] 无法创建 Session：{sessionTypeName}");
-                return false;
-            }
-
-            OpenSession(session);
-            return true;
+            SessionFactories[presentationType] = factory;
         }
     }
 }

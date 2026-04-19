@@ -50,6 +50,8 @@ namespace SpaceTUI
 
     public override bool HandleKey(KeyInfo key)
     {
+        Debug.Log($"[TUISelectSlot] HandleKey received: {key.keyCode}");
+
         // 回车键 → HandleConfirm
         if (key.keyCode == KeyCode.Return || key.keyCode == KeyCode.KeypadEnter)
         {
@@ -93,6 +95,7 @@ namespace SpaceTUI
         }
 
         // 其他键默认不处理
+        Debug.Log($"[TUISelectSlot] HandleKey: {key.keyCode} not handled, returning false");
         return false;
     }
 
@@ -228,10 +231,14 @@ namespace SpaceTUI
     {
         if (Console == null)
         {
+            Debug.Log("[TUISelectSlot.Render] Console is null, aborting");
             return;
         }
 
         var lines = BuildLines();
+        Debug.Log($"[TUISelectSlot.Render] _startLine={_startLine}, _renderedHeight={_renderedHeight}, lines.Count={lines.Count}, SelectedIndex={SelectedIndex}");
+        if (lines.Count > 0)
+            Debug.Log($"[TUISelectSlot.Render] First line: {lines[0]?.Substring(0, Mathf.Min(40, lines[0]?.Length ?? 0))}...");
         Console.WriteInputHandleRange(_startLine, _renderedHeight, lines);
         _renderedHeight = lines.Count;
     }
