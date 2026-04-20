@@ -31,6 +31,7 @@ public enum VFSContentSource
 /// </summary>
 public sealed class VFSResolvedContent
 {
+    public VFSNodeData Node { get; set; }
     public string Extension { get; set; }
     public VFSContentKind Kind { get; set; }
     public VFSContentSource Source { get; set; }
@@ -79,6 +80,7 @@ public static class VFSContentResolver
 
         return new VFSResolvedContent
         {
+            Node = node,
             Extension = node.Extension,
             Kind = effectiveKind,
             Source = effectiveSource,

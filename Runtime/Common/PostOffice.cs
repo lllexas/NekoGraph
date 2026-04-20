@@ -110,8 +110,7 @@ public static class PostOffice
             case EventProtocol.String: return payload is string;
             case EventProtocol.Vector: return payload is Vector3 || payload is Vector2;
             case EventProtocol.Boolean: return payload is bool;
-            case EventProtocol.Entity: return payload != null; // 这里可以根据项目需求细化喵~
-            default: return true;
+            default: return EventProtocolRegistry.Validate(protocol, payload);
         }
     }
 }

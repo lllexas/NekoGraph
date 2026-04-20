@@ -214,27 +214,16 @@ public class GraphRunner
         // 1. 直接引用 PackTable，零副本喵~
         _packTable = packTable;
 
-        // 2. 扫描所有 Pack，恢复挂起信号 + 启动未启动的
+        // 2. 扫描所有 Pack，保留挂起信号并启动未启动的
         foreach (var pack in packTable.Values)
         {
-            // 2.1 恢复挂起信号 - Wait 状态下被冻结的信号现在重新入队喵~
             if (pack.SuspendedSignals != null && pack.SuspendedSignals.Count > 0)
             {
-                int totalSuspendedCount = 0;
-
-                foreach (var signal in pack.SuspendedSignals.Values)
-                {
-                    pack.ActiveSignals.Enqueue(signal);
-                    totalSuspendedCount++;
-                }
-
-                if (EnableDebugLog && totalSuspendedCount > 0)
-                    Debug.Log($"[GraphRunner] Pack '{pack.PackID}' 恢复了 {totalSuspendedCount} 个挂起信号喵~");
-
-                pack.SuspendedSignals.Clear();
+                if (EnableDebugLog)
+                    Debug.Log($"[GraphRunner] Pack '{pack.PackID}' 保留了 {pack.SuspendedSignals.Count} 个挂起信号喵~");
             }
 
-            // 2.2 启动未启动的 Pack
+            // 2.1 启动未启动的 Pack
             if (!pack.HasStarted && !string.IsNullOrEmpty(pack.RootNodeId))
             {
                 pack.ActiveSignals.Enqueue(new SignalContext(pack.RootNodeId, null));

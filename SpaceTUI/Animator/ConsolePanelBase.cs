@@ -948,9 +948,7 @@ namespace SpaceTUI
                         isAltDown = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)
                     };
 
-                    Debug.Log($"[PanelInput] → session.HandleKey: {keyInfo.keyCode}");
                     bool handled = session.HandleKey(keyInfo);
-                    Debug.Log($"[PanelInput] ← session.HandleKey returned {handled}");
                     if (handled)
                     {
                         // session 消费了回车（如确认/退出），防止 TMP_InputField 在 EventSystem 阶段残留换行符
@@ -964,6 +962,18 @@ namespace SpaceTUI
                         }
                         return; // Handler 处理了，返回
                     }
+                }
+
+                string submitText = CollectSessionSubmitText();
+                if (!string.IsNullOrEmpty(submitText) && session.HandleSubmit(submitText))
+                {
+                    if (inputField != null && inputField.text.Length > 0)
+                    {
+                        inputField.text = "";
+                        _lastInputText = "";
+                        UpdateInputLine("", 0);
+                    }
+                    return;
                 }
 
                 // session 模式下不再依赖输入框焦点或普通文本输入。
@@ -1008,6 +1018,24 @@ namespace SpaceTUI
                 UpdateInputLine("", 0);
                 ScrollToBottom();
             }
+        }
+
+        private static string CollectSessionSubmitText()
+        {
+            string raw = Input.inputString;
+            if (string.IsNullOrEmpty(raw))
+                return null;
+
+            var chars = new List<char>(raw.Length);
+            foreach (char c in raw)
+            {
+                if (c == '\b' || c == '\r' || c == '\n' || char.IsControl(c))
+                    continue;
+
+                chars.Add(c);
+            }
+
+            return chars.Count > 0 ? new string(chars.ToArray()) : null;
         }
 #endregion
     }

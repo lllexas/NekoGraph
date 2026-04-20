@@ -11,7 +11,7 @@ namespace SpaceTUI
     public abstract class TUISelectSlot : ConsoleSessionBase
     {
     private TUISelectionConfig _config;
-    private readonly int _startLine;
+    private int _startLine;
     private int _renderedHeight;
     private int _selectedIndex = -1;
 
@@ -21,7 +21,6 @@ namespace SpaceTUI
         _startLine = config.console != null ? config.console.InputHandleStartLine : 0;
 
         NormalizeSelection(useInitialKey: true);
-        Render();
     }
 
     public int StartLine => _startLine;
@@ -50,8 +49,6 @@ namespace SpaceTUI
 
     public override bool HandleKey(KeyInfo key)
     {
-        Debug.Log($"[TUISelectSlot] HandleKey received: {key.keyCode}");
-
         // 回车键 → HandleConfirm
         if (key.keyCode == KeyCode.Return || key.keyCode == KeyCode.KeypadEnter)
         {
@@ -95,7 +92,6 @@ namespace SpaceTUI
         }
 
         // 其他键默认不处理
-        Debug.Log($"[TUISelectSlot] HandleKey: {key.keyCode} not handled, returning false");
         return false;
     }
 
@@ -173,6 +169,14 @@ namespace SpaceTUI
         return fallbackPrompt;
     }
 
+    public override void OnSessionEnter(ConsoleManager console)
+    {
+        _renderedHeight = 0;
+        console?.ClearConsole();
+        _startLine = console != null ? console.InputHandleStartLine : 0;
+        Render();
+    }
+
     protected void MoveSelection(int delta)
     {
         if (!HasItems)
@@ -218,8 +222,12 @@ namespace SpaceTUI
             return;
         }
 
+        int previousIndex = _selectedIndex;
         _selectedIndex = clampedIndex;
-        Render();
+        if (!TryRenderSelectionChange(previousIndex, _selectedIndex))
+        {
+            Render();
+        }
 
         if (notify && TryGetSelectedItem(out var item))
         {
@@ -230,15 +238,11 @@ namespace SpaceTUI
     protected void Render()
     {
         if (Console == null)
-        {
-            Debug.Log("[TUISelectSlot.Render] Console is null, aborting");
             return;
-        }
+        if (!ReferenceEquals(Console.CurrentSession, this))
+            return;
 
         var lines = BuildLines();
-        Debug.Log($"[TUISelectSlot.Render] _startLine={_startLine}, _renderedHeight={_renderedHeight}, lines.Count={lines.Count}, SelectedIndex={SelectedIndex}");
-        if (lines.Count > 0)
-            Debug.Log($"[TUISelectSlot.Render] First line: {lines[0]?.Substring(0, Mathf.Min(40, lines[0]?.Length ?? 0))}...");
         Console.WriteInputHandleRange(_startLine, _renderedHeight, lines);
         _renderedHeight = lines.Count;
     }
@@ -351,5 +355,6 @@ namespace SpaceTUI
 
     protected abstract bool TryNavigate(ConsoleNavKey key);
     protected abstract List<string> BuildLines();
+    protected virtual bool TryRenderSelectionChange(int previousIndex, int currentIndex) => false;
     }
 }

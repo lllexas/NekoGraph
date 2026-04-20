@@ -9,7 +9,7 @@ using UnityEngine;
 namespace NekoGraph.Editor
 {
     /// <summary>
-    /// 统一的 MetaLib 重建：一次扫描同时登记 EntityPack (JSON) 和 BBBNexus SO 两类条目。
+    /// 统一的 MetaLib 重建：一次扫描同时登记 EntityPack (.nekograph) 和 Resources 下的 SO 条目。
     /// 替代原先分离的 EntityPackMetaLibRegistry 和 MetaLibSoRegistry。
     /// </summary>
     internal static class MetaLibFullRegistry
@@ -31,7 +31,7 @@ namespace NekoGraph.Editor
                 .ToDictionary(e => e.EffectiveID, e => e, StringComparer.Ordinal);
 
             var entityEntries = BuildPackEntries();
-            var soEntries = BuildBbbNexusSoEntries();
+            var soEntries = BuildScriptableObjectEntries();
 
             // 冲突检测
             foreach (var key in soEntries.Keys)
@@ -58,7 +58,7 @@ namespace NekoGraph.Editor
             Debug.Log($"[MetaLib] Rebuilt all entries — EntityPack: {entityEntries.Count}, SO: {soEntries.Count}, Preserved: {preserved.Count}");
         }
 
-        #region EntityPack (JSON)
+        #region EntityPack (.nekograph)
 
         private static Dictionary<string, MetaLib.MetaEntry> BuildPackEntries()
         {
@@ -66,8 +66,8 @@ namespace NekoGraph.Editor
             if (!Directory.Exists(AssetsRootDir))
                 return results;
 
-            // 递归扫描 Assets/ 下所有 JSON，只要路径含 /Resources/ 或 /StreamingAssets/ 就尝试登记
-            foreach (var file in Directory.GetFiles(AssetsRootDir, "*.json", SearchOption.AllDirectories))
+            // 递归扫描 Assets/ 下所有 .nekograph，只要路径含 /Resources/ 或 /StreamingAssets/ 就尝试登记
+            foreach (var file in Directory.GetFiles(AssetsRootDir, "*.nekograph", SearchOption.AllDirectories))
             {
                 string normalized = file.Replace('\\', '/');
                 if (!TryClassifyPath(normalized, out var storage, out var relativePath))
@@ -109,7 +109,7 @@ namespace NekoGraph.Editor
             }
             catch
             {
-                // 非 Pack JSON（如 MetaLib.json 自身）静默跳过
+                // 非 Pack 文件静默跳过
                 return null;
             }
         }
@@ -154,9 +154,9 @@ namespace NekoGraph.Editor
 
         #endregion
 
-        #region BBBNexus SO
+        #region ScriptableObject
 
-        private static Dictionary<string, MetaLib.MetaEntry> BuildBbbNexusSoEntries()
+        private static Dictionary<string, MetaLib.MetaEntry> BuildScriptableObjectEntries()
         {
             var results = new Dictionary<string, MetaLib.MetaEntry>(StringComparer.Ordinal);
             var guids = AssetDatabase.FindAssets("t:ScriptableObject");
@@ -176,14 +176,11 @@ namespace NekoGraph.Editor
                     continue;
 
                 var type = so.GetType();
-                if (type.Namespace == null || !type.Namespace.StartsWith("BBBNexus", StringComparison.Ordinal))
-                    continue;
-
                 string id = so.name;
                 if (results.ContainsKey(id))
                 {
                     Debug.LogError(
-                        $"[MetaLib] Duplicate BBBNexus SO ID '{id}'. Conflicting: '{results[id].ResourcePath}' vs '{ToResourcesPath(assetPath)}'.");
+                        $"[MetaLib] Duplicate ScriptableObject ID '{id}'. Conflicting: '{results[id].ResourcePath}' vs '{ToResourcesPath(assetPath)}'.");
                     continue;
                 }
 

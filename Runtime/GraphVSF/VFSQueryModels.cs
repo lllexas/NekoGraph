@@ -10,6 +10,7 @@ namespace NekoGraph
         public GraphAnalyser Analyser { get; set; }
         public string PackID { get; set; }
         public string VfsPath { get; set; }
+        public string RequestName { get; set; }
         public int SubjectLevel { get; set; }
         public VFSNodeData Node { get; set; }
         public object FrontendContext { get; set; }
@@ -22,6 +23,7 @@ namespace NekoGraph
     public sealed class VFSQueryResult
     {
         public string PresentationType { get; set; }
+        public string RequestName { get; set; }
         public string Title { get; set; }
         public string Summary { get; set; }
         public object Payload { get; set; }
@@ -29,6 +31,7 @@ namespace NekoGraph
 
         public static VFSQueryResult Create(
             string presentationType,
+            string requestName = null,
             string title = null,
             string summary = null,
             object payload = null,
@@ -37,6 +40,7 @@ namespace NekoGraph
             return new VFSQueryResult
             {
                 PresentationType = presentationType,
+                RequestName = requestName,
                 Title = title,
                 Summary = summary,
                 Payload = payload,

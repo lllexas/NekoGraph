@@ -47,17 +47,17 @@ public class PostEventNodeStrategy : NodeStrategy
         // --- 解析 Payload 喵~ ---
         object payload = null;
 
-        // Entity 协议需要特殊处理：从上下文中获取
-        if (meta.Info.Protocol == EventProtocol.Entity)
+        // Entity / SpawnRequest 协议需要特殊处理：从上下文中获取
+        if (meta.Info.Protocol == EventProtocol.Entity || meta.Info.Protocol == EventProtocol.SpawnRequest)
         {
-            // 尝试从 SignalContext 中获取 Entity 类型的 Payload
+            // 尝试从 SignalContext 中获取强类型 Payload
             if (context.Args != null)
             {
                 payload = context.Args;
             }
             else
             {
-                Debug.LogWarning($"[PostEventNode] 事件 [{eventName}] 需要 Entity 类型的 Payload，但上下文中未提供喵~");
+                Debug.LogWarning($"[PostEventNode] 事件 [{eventName}] 需要 {meta.Info.Protocol} 类型的 Payload，但上下文中未提供喵~");
             }
         }
         else
@@ -140,11 +140,8 @@ public class PostEventNodeStrategy : NodeStrategy
             case EventProtocol.Boolean:
                 return payload is bool;
 
-            case EventProtocol.Entity:
-                return payload != null;
-
             default:
-                return true;
+                return EventProtocolRegistry.Validate(protocol, payload);
         }
     }
 }

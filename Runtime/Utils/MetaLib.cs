@@ -231,6 +231,15 @@ public static class MetaLib
         return entry;
     }
 
+    public static bool TryGetResourcePath(string id, out string path)
+    {
+        path = null;
+        var entry = GetMeta(id);
+        if (entry == null) return false;
+        path = entry.ResourcePath;
+        return !string.IsNullOrWhiteSpace(path);
+    }
+
     public static MetaEntry GetMetaByPath(string resourcePath)
     {
         if (!_isInitialized) Initialize();

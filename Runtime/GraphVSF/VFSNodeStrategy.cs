@@ -29,17 +29,14 @@ public class VFSNodeStrategy : NodeStrategy
 
         // 文件节点：查 ExeRegistry 执行对应后缀的处理器喵~
         var result = HandleResult.Push; // 默认继续传播
-        List<string> suspendedIds = null;
-        System.Action continueAction = null;
+        System.Action continueAction = () => { };
         if (vfsNode.IsFile && vfsNode.IsEnabled)
         {
             if (ExeRegistry.TryGetHandler(vfsNode.Extension, out var handler))
             {
-                // continueAction 在 handler 返回前构建，此时还不知道是否 Wait，先用占位喵~
                 try
                 {
                     var content = VFSContentResolver.Resolve(vfsNode);
-                    continueAction = () => ResumeSuspendedSignals(pack, suspendedIds);
                     result = handler.Invoke(content, context, pack, runner, packIDKey, continueAction);
                 }
                 catch (Exception e)
@@ -68,8 +65,10 @@ public class VFSNodeStrategy : NodeStrategy
         }
         else if (result == HandleResult.Wait)
         {
-            // Wait 模式：后续信号保存到挂起字典，闭包持有 ID 列表，恢复时精确 Remove 喵~
-            suspendedIds = SuspendSignals(pack, vfsNode.ChildNodeIDs, context);
+            // Wait 模式：挂起当前 signal 本体。
+            // 后续不再预先生成指向子节点的 signal，
+            // 真正的恢复应通过 ResumeToTarget 类 API 显式决定下一跳喵~
+            SuspendCurrentSignal(pack, context);
         }
         // HandleResult.Error: 已记录错误，不传播信号
         
@@ -88,40 +87,18 @@ public class VFSNodeStrategy : NodeStrategy
     }
 
     /// <summary>
-    /// 暂停信号到挂起字典 - Wait 状态下使用喵~
-    /// 返回被挂起的子信号 ID 列表，供 continueAction 闭包持有以精确恢复喵~
+    /// 暂停当前 signal 本体到挂起字典 - Wait 状态下使用喵~
+    /// 当前节点保持不变，恢复时应显式决定它向哪个目标节点传播。
     /// </summary>
-    private List<string> SuspendSignals(BasePackData pack, IEnumerable<string> targetIds, SignalContext context)
+    private void SuspendCurrentSignal(BasePackData pack, SignalContext context)
     {
+        if (pack == null || context == null || string.IsNullOrWhiteSpace(context.SignalId))
+            return;
+
         if (pack.Nodes.TryGetValue(context.CurrentNodeId, out var currentNode))
             currentNode.IsChecked = true;
 
-        var suspendedIds = new List<string>();
-        foreach (var targetId in targetIds)
-        {
-            var newSignal = context.Clone(copyPath: true);
-            newSignal.RecordConnection(new ConnectionData(context.CurrentNodeId, -1, targetId, -1));
-            newSignal.CurrentNodeId = targetId;
-            pack.SuspendedSignals[newSignal.SignalId] = newSignal;
-            suspendedIds.Add(newSignal.SignalId);
-        }
-        return suspendedIds;
-    }
-
-    /// <summary>
-    /// 从挂起字典恢复信号到活跃队列 - continueAction 回调时调用喵~
-    /// 精确 Remove 闭包持有的 key，不影响其他挂起信号喵~
-    /// </summary>
-    private void ResumeSuspendedSignals(BasePackData pack, List<string> suspendedIds)
-    {
-        foreach (var id in suspendedIds)
-        {
-            if (pack.SuspendedSignals.TryGetValue(id, out var signal))
-            {
-                pack.ActiveSignals.Enqueue(signal);
-                pack.SuspendedSignals.Remove(id);
-            }
-        }
+        pack.SuspendedSignals[context.SignalId] = context;
     }
 }
 

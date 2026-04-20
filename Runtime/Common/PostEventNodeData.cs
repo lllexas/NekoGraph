@@ -101,6 +101,10 @@ public class PostEventNodeData : BaseNodeData
                 Debug.LogWarning("[PostEventNode] Entity 协议的事件需要通过代码设置 Payload，无法通过字符串配置喵~");
                 return null;
 
+            case EventProtocol.SpawnRequest:
+                Debug.LogWarning("[PostEventNode] SpawnRequest 协议的事件需要通过代码设置 Payload，无法通过字符串配置喵~");
+                return null;
+
             default:
                 return null;
         }

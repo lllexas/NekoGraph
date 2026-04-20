@@ -6,7 +6,8 @@
 public enum EventProtocol
 {
     None,       // 无参数
-    Entity,     // 实体句柄 (EntityHandle)
+    Entity,     // 项目自定义实体句柄
+    SpawnRequest, // 项目自定义召唤请求
     Numeric,    // 数值 (float/int/double)
     String,     // 字符串 (ID/Name)
     Vector,     // 坐标 (Vector3)

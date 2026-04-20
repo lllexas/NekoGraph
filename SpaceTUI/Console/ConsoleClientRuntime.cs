@@ -14,6 +14,8 @@ namespace SpaceTUI
     {
         private static readonly Dictionary<string, Func<object, IConsoleSession>> SessionFactories =
             new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, Action<ConsoleManager, VFSQueryResult>> Presenters =
+            new(StringComparer.Ordinal);
 
         private readonly ConsoleManager _console;
 
@@ -31,8 +33,6 @@ namespace SpaceTUI
         /// </summary>
         public bool TryPresent(VFSQueryResult result)
         {
-            Debug.Log($"[ConsoleClientRuntime] TryPresent called: type={result?.PresentationType}, title={result?.Title}");
-
             if (_console == null || result == null)
                 return false;
 
@@ -40,7 +40,6 @@ namespace SpaceTUI
                 SessionFactories.TryGetValue(result.PresentationType, out var factory))
             {
                 var session = factory?.Invoke(result.Payload);
-                Debug.Log($"[ConsoleClientRuntime] Factory returned session: {session?.SessionId ?? "(null)"}");
                 if (session != null)
                 {
                     OpenSession(session);
@@ -48,7 +47,13 @@ namespace SpaceTUI
                 }
             }
 
-            Debug.Log($"[ConsoleClientRuntime] 未处理的 QueryResult: type={result.PresentationType ?? "(null)"} title={result.Title ?? "(null)"}");
+            if (!string.IsNullOrWhiteSpace(result.PresentationType) &&
+                Presenters.TryGetValue(result.PresentationType, out var presenter))
+            {
+                presenter?.Invoke(_console, result);
+                return true;
+            }
+
             return false;
         }
 
@@ -82,6 +87,14 @@ namespace SpaceTUI
                 return;
 
             SessionFactories[presentationType] = factory;
+        }
+
+        public static void RegisterPresenter(string presentationType, Action<ConsoleManager, VFSQueryResult> presenter)
+        {
+            if (string.IsNullOrWhiteSpace(presentationType) || presenter == null)
+                return;
+
+            Presenters[presentationType] = presenter;
         }
     }
 }
