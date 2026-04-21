@@ -326,7 +326,6 @@ namespace SpaceTUI
 
         IConsoleSession closingSession = _currentSession;
         Debug.Log($"<color=orange>[ConsoleManager]</color> EndSession: {closingSession.SessionId} ({closingSession.SessionName})");
-        UnbindInputHandleHost();
         _currentSession = null;
         closingSession.OnSessionExit(this);
     }
