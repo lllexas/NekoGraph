@@ -229,7 +229,6 @@ namespace SpaceTUI
 
         protected new virtual void Update()
         {
-            TryBindInputHandleHost();
             base.Update(); // 滚轮 + 脏刷新（ConsoleDisplayBase 处理）
 
             // 键盘输入监听
@@ -492,11 +491,6 @@ namespace SpaceTUI
         {
             if (_inputHandleHostBound || ConsoleLogic == null)
             {
-                if (_inputHandleHostBound && ConsoleLogic != null)
-                {
-                    // 诊断：已绑定状态下，ConsoleManager 的 writer 是否仍为 null？
-                    Debug.Log($"[TryBindInputHandleHost] Already bound. Checking ConsoleManager state...");
-                }
                 return;
             }
 
