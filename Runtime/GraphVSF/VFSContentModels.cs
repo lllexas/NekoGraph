@@ -13,7 +13,8 @@ public enum VFSContentKind
 {
     Json,
     Csv,
-    UnityObject
+    UnityObject,
+    Nekograph
 }
 
 /// <summary>
@@ -41,10 +42,12 @@ public sealed class VFSResolvedContent
     public string AssetPath { get; set; }
     public string UnityObjectTypeName { get; set; }
     public UnityEngine.Object UnityObject { get; set; }
+    public BasePackData NekographPack { get; set; }
 
     public bool HasText => !string.IsNullOrWhiteSpace(RawText);
     public bool HasReference => !string.IsNullOrWhiteSpace(ReferencePath) || !string.IsNullOrWhiteSpace(AssetPath);
     public bool HasUnityObject => UnityObject != null;
+    public bool HasNekographPack => NekographPack != null;
 
     public string GetTextOrEmpty() => RawText ?? string.Empty;
 
@@ -59,6 +62,18 @@ public sealed class VFSResolvedContent
     public T GetUnityObject<T>() where T : UnityEngine.Object
     {
         return UnityObject as T;
+    }
+
+    public BasePackData GetNekographPack()
+    {
+        if (NekographPack != null)
+            return NekographPack;
+
+        if (string.IsNullOrWhiteSpace(RawText))
+            return null;
+
+        NekographPack = BasePackData.FromJson(RawText);
+        return NekographPack;
     }
 }
 
@@ -77,6 +92,7 @@ public static class VFSContentResolver
         var effectiveSource = node.GetEffectiveContentSource();
         string rawText = ResolveText(node, effectiveKind, effectiveSource);
         UnityEngine.Object unityObject = ResolveUnityObject(node, effectiveKind, effectiveSource);
+        BasePackData nekographPack = ResolveNekographPack(effectiveKind, rawText);
 
         return new VFSResolvedContent
         {
@@ -89,7 +105,8 @@ public static class VFSContentResolver
             AssetGuid = node.AssetGuid,
             AssetPath = node.AssetPath,
             UnityObjectTypeName = node.UnityObjectTypeName,
-            UnityObject = unityObject
+            UnityObject = unityObject,
+            NekographPack = nekographPack
         };
     }
 
@@ -147,6 +164,22 @@ public static class VFSContentResolver
 #endif
 
         return null;
+    }
+
+    private static BasePackData ResolveNekographPack(VFSContentKind kind, string rawText)
+    {
+        if (kind != VFSContentKind.Nekograph || string.IsNullOrWhiteSpace(rawText))
+            return null;
+
+        try
+        {
+            return BasePackData.FromJson(rawText);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[VFSContentResolver] Failed to parse .nekograph payload: {e.Message}");
+            return null;
+        }
     }
 
     public static bool TryLoadReferencedText(string referencePath, string assetPath, out string text)
@@ -218,6 +251,7 @@ public static class VFSContentResolver
             Path.Combine(Application.streamingAssetsPath, normalized),
             Path.Combine(Application.streamingAssetsPath, normalized + ".json"),
             Path.Combine(Application.streamingAssetsPath, normalized + ".csv"),
+            Path.Combine(Application.streamingAssetsPath, normalized + ".nekograph"),
             Path.Combine(Application.streamingAssetsPath, normalized + ".txt")
         };
     }

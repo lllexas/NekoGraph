@@ -145,6 +145,13 @@ public class VFSNodeData : BaseNodeData
             {
                 return VFSContentKind.Csv;
             }
+
+            if (string.Equals(Extension, ".nekograph", StringComparison.OrdinalIgnoreCase) &&
+                ContentKind == VFSContentKind.Json &&
+                string.IsNullOrWhiteSpace(UnityObjectTypeName))
+            {
+                return VFSContentKind.Nekograph;
+            }
         }
 
         return ContentKind;

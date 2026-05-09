@@ -37,7 +37,7 @@ public class VFSNode : BaseNode<VFSNodeData>
     // 外联编辑器 buffer 路径
     private string _tempFilePath;
     private long _lastWriteTimeTicks;
-    private static readonly List<string> ContentKindOptions = new() { "Json", "Csv", "ScriptableObject" };
+    private static readonly List<string> ContentKindOptions = new() { "Json", "Csv", "ScriptableObject", "Nekograph" };
     private static readonly List<string> ContentSourceOptions = new() { "直接输入", "引用资源" };
 
     public VFSNode() : base() => InitializeUI();
@@ -195,6 +195,7 @@ public class VFSNode : BaseNode<VFSNodeData>
         {
             VFSContentKind.Csv => ".csv",
             VFSContentKind.UnityObject => ".json",
+            VFSContentKind.Nekograph => ".nekograph",
             _ => ".json"
         };
         _tempFilePath = Path.Combine(tempDir, $"VFSNode_{TypedData.NodeID}{fileExtension}");
@@ -271,6 +272,17 @@ public class VFSNode : BaseNode<VFSNodeData>
 
         if (TypedData.GetEffectiveContentKind() == VFSContentKind.UnityObject)
             return string.Empty;
+
+        if (TypedData.GetEffectiveContentKind() == VFSContentKind.Nekograph)
+        {
+            var pack = new BasePackData
+            {
+                PackID = string.IsNullOrWhiteSpace(TypedData.Name) ? "run_stage" : TypedData.Name,
+                DisplayName = TypedData.Name
+            };
+            pack.Initialize();
+            return pack.ToJson();
+        }
 
         if (dataType == null) return "{}";
         try
@@ -410,7 +422,9 @@ public class VFSNode : BaseNode<VFSNodeData>
 
         TypedData.AssetPath = assetPath ?? "";
         TypedData.AssetGuid = string.IsNullOrWhiteSpace(assetPath) ? "" : AssetDatabase.AssetPathToGUID(assetPath);
-        TypedData.UnityObjectTypeName = value.GetType().AssemblyQualifiedName;
+        TypedData.UnityObjectTypeName = TypedData.GetEffectiveContentKind() == VFSContentKind.UnityObject
+            ? value.GetType().AssemblyQualifiedName
+            : "";
 
         if (TryConvertAssetPathToReferencePath(assetPath, out var resolvedReferencePath))
         {
@@ -535,6 +549,7 @@ public class VFSNode : BaseNode<VFSNodeData>
         {
             VFSContentKind.Csv => "Csv",
             VFSContentKind.UnityObject => "ScriptableObject",
+            VFSContentKind.Nekograph => "Nekograph",
             _ => "Json"
         };
     }
@@ -545,6 +560,7 @@ public class VFSNode : BaseNode<VFSNodeData>
         {
             "Csv" => VFSContentKind.Csv,
             "ScriptableObject" => VFSContentKind.UnityObject,
+            "Nekograph" => VFSContentKind.Nekograph,
             _ => VFSContentKind.Json
         };
     }
@@ -618,6 +634,25 @@ public class VFSNode : BaseNode<VFSNodeData>
 
             case VFSContentKind.Csv:
                 return ValidateCsv(text, assetPath, out message);
+
+            case VFSContentKind.Nekograph:
+                try
+                {
+                    var pack = BasePackData.FromJson(text);
+                    if (pack == null)
+                    {
+                        message = $".nekograph 非法：{Path.GetFileName(assetPath)} 解析为空";
+                        return false;
+                    }
+
+                    message = $".nekograph 合法：{pack.PackID} ({pack.Nodes?.Count ?? 0} nodes)";
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    message = $".nekograph 非法：{ex.Message}";
+                    return false;
+                }
 
             default:
                 message = "未定义的文本载荷类型";
@@ -771,6 +806,7 @@ public class VFSNode : BaseNode<VFSNodeData>
 
         if (!string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(extension, ".csv", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".nekograph", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(extension, ".txt", StringComparison.OrdinalIgnoreCase))
         {
             message = $"不支持的文本后缀：{extension}";

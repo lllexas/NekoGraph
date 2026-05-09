@@ -159,16 +159,7 @@ public class GraphHub : SingletonMono<GraphHub>
 
     public T GetFacade<T>() where T : PackFacadeBase
     {
-        T result = _facades.TryGetValue(typeof(T), out var facade) ? facade as T : null;
-        Debug.LogFormat(
-            LogType.Log,
-            LogOption.NoStacktrace,
-            null,
-            "[graph_hub] get-facade type={0} found={1} pack={2}",
-            typeof(T).Name,
-            result != null,
-            result?.ResolvedPackID ?? "(null)");
-        return result;
+        return _facades.TryGetValue(typeof(T), out var facade) ? facade as T : null;
     }
 
     public Dictionary<string, BasePackData> GetPackTable(GraphInstanceSlot slot)
