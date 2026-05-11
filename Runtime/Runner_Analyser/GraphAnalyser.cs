@@ -1074,11 +1074,26 @@ public class GraphAnalyser
             if (payload is string refPath)
             {
                 node.ReferencePath = refPath;
+                node.AssetGuid = string.Empty;
+                node.AssetPath = string.Empty;
                 Debug.Log($"[GraphAnalyser] TrySetPayload：'{path}' ReferencePath 已更新为 '{refPath}'");
             }
             else if (payload is UnityEngine.Object unityObj)
             {
-                node.AssetGuid = UnityEditor.AssetDatabase.GetAssetPath(unityObj);
+#if UNITY_EDITOR
+                string assetPath = UnityEditor.AssetDatabase.GetAssetPath(unityObj);
+                node.AssetPath = assetPath ?? string.Empty;
+                node.AssetGuid = string.IsNullOrWhiteSpace(assetPath)
+                    ? string.Empty
+                    : UnityEditor.AssetDatabase.AssetPathToGUID(assetPath);
+                if (TryConvertAssetPathToReferencePath(assetPath, out var resolvedReferencePath))
+                    node.ReferencePath = resolvedReferencePath;
+                else
+                    node.ReferencePath = assetPath ?? string.Empty;
+#else
+                Debug.LogError($"[GraphAnalyser] TrySetPayload 失败：Player 中无法从 UnityObject 反查 Resources/StreamingAssets 引用路径，请传入 string ReferencePath");
+                return false;
+#endif
                 node.UnityObjectTypeName = unityObj.GetType().AssemblyQualifiedName;
                 Debug.Log($"[GraphAnalyser] TrySetPayload：'{path}' UnityObject 引用已更新");
             }
@@ -1095,6 +1110,33 @@ public class GraphAnalyser
         }
 
         return true;
+    }
+
+    private static bool TryConvertAssetPathToReferencePath(string assetPath, out string referencePath)
+    {
+        referencePath = null;
+        if (string.IsNullOrWhiteSpace(assetPath))
+            return false;
+
+        var normalized = assetPath.Replace('\\', '/');
+        const string resourcesMarker = "/Resources/";
+        int resourcesIndex = normalized.IndexOf(resourcesMarker, StringComparison.OrdinalIgnoreCase);
+        if (resourcesIndex >= 0)
+        {
+            string relative = normalized[(resourcesIndex + resourcesMarker.Length)..];
+            referencePath = System.IO.Path.ChangeExtension(relative, null)?.Replace('\\', '/');
+            return !string.IsNullOrWhiteSpace(referencePath);
+        }
+
+        const string streamingMarker = "/StreamingAssets/";
+        int streamingIndex = normalized.IndexOf(streamingMarker, StringComparison.OrdinalIgnoreCase);
+        if (streamingIndex >= 0)
+        {
+            referencePath = normalized[(streamingIndex + streamingMarker.Length)..];
+            return !string.IsNullOrWhiteSpace(referencePath);
+        }
+
+        return false;
     }
 
     // =========================================================

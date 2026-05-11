@@ -28,6 +28,7 @@ NekoGraph 的一切围绕**图**展开。
 
 - 绑定 `ScriptableObject`、`JSON`、`CSV` 等资源
 - 被信号流触发时，框架根据后缀找到对应的 Execute/Query Handler
+- 运行时引用资源以 `ReferencePath` 为事实源；`AssetGuid`/`AssetPath` 只做编辑器辅助。SO 和 TextAsset 都应落到 Resources 或 StreamingAssets 可解析路径，详见 `Runtime/README.md` 的注意事项。
 
 **为什么需要两种节点？**
 

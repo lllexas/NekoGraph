@@ -259,6 +259,14 @@ GraphRunner.Instance.EnableDebugLog = true;
 
 4. **时间触发器**：由 `TriggerSystem.Update()` 轮询处理
 
+5. **VFS 引用资源的运行时事实源是 `ReferencePath`**：
+   - `ScriptableObject` 资源由 `VFSContentResolver.ResolveUnityObject()` 读取，核心路径是 `Resources.Load(node.ReferencePath, objectType)`。
+   - `TextAsset`、`.json`、`.csv`、`.nekograph` 等文本引用由 `VFSContentResolver.ResolveText()` 读取，核心路径是 `Resources.Load<TextAsset>(node.ReferencePath)` 或 StreamingAssets 相对路径。
+   - `AssetGuid` 和 `AssetPath` 只是编辑器辅助字段。Player 里不能依赖它们恢复资源。
+   - 在 Editor 中，如果 `TrySetPayload(..., UnityEngine.Object payload, ...)` 传入 SO 或 TextAsset，应同步写入 `AssetPath`、`AssetGuid`、`ReferencePath`、`UnityObjectTypeName`。`ReferencePath` 规则必须和 VFS 编辑器一致：`Resources` 下去扩展名，`StreamingAssets` 下保留相对路径。
+   - 在 Player 中，不要尝试从 `UnityEngine.Object` 反查资源路径。运行时要改引用时传入 string `ReferencePath`，而不是传对象本身。
+   - 简单记法：**SO 怎么跑，TextAsset 就怎么跑，最终都要落到可运行时解析的 `ReferencePath`。**
+
 ## 🎮 示例任务包结构
 
 ```json
