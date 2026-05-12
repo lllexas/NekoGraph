@@ -390,7 +390,7 @@ namespace SpaceTUI
         /// 淡入（原子方法：只负责淡入，无副作用）
         /// 保护：如果已经是显示状态（blocksRaycasts = true），禁止执行
         /// </summary>
-        public virtual void FadeIn(float? targetRotationY = null)
+        public virtual void FadeIn(float? targetRotationY = null, bool preserveInitialRotation = false)
         {
             // 保护：如果已经是显示状态，禁止执行
             if (_canvasGroup.blocksRaycasts)
@@ -405,8 +405,15 @@ namespace SpaceTUI
             _moveTween?.Kill();
 
             // 设置目标旋转
-            float targetY = targetRotationY ?? _targetRotationY;
-            _targetRotation = Quaternion.Euler(0, targetY, 0);
+            if (preserveInitialRotation)
+            {
+                _targetRotation = _initialRotation;
+            }
+            else
+            {
+                float targetY = targetRotationY ?? _targetRotationY;
+                _targetRotation = Quaternion.Euler(0, targetY, 0);
+            }
 
             // 立即启用射线拦截（动画开始前）
             _canvasGroup.blocksRaycasts = true;
